@@ -107,7 +107,7 @@ function onLocationFound(e) {
         color: "#000",
         weight: 1,
         opacity: 1,
-        fillOpacity: 0.8
+        fillOpacity: 0.5
 
     }
 
@@ -124,8 +124,8 @@ map.setView([33.9709, -118.444], 10);
 map.setMaxBounds(map.getBounds().pad(0.2));
 
 L.control.layers(null, {
-    'Current Rail Positions': realtime1
-}).addTo(map);
+    "Current Rail Vehicles <svg height='10' width='10'><circle cx='5' cy='5' r='4' stroke='black' stroke-width='1' fill='#dd6d03' /></svg>": realtime1
+},{collapsed: false}).addTo(map);
 
 realtime1.once('update', function() {
     console.log('realtime1 loaded');
