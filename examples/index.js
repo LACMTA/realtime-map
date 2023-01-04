@@ -1,6 +1,6 @@
 var geojsonMarkerOptions = {
-    radius: 2,
-    fillColor: "#ff7800",
+    radius: 5,
+    fillColor: "#dd6d03",
     color: "#000",
     weight: 1,
     opacity: 1,
@@ -20,6 +20,34 @@ const colorDict= {
     807: "#e96bb0",
 }
 
+
+
+fetch('https://api.metro.net/LACMTA_Rail/trip_shapes/all')
+    .then(response => {
+        return response.json()
+    })
+    .then(response =>{
+        console.log(response)
+        response.forEach(element => {
+            console.log(element.properties.shape_id)
+            // let route_id = element.properties.shape_id.substring(0,3)
+            let route_id = get_readable_route_id(element.properties.shape_id.substring(0,3))
+            if (route_id == 'K Line'){
+                let route_id_number = element.properties.shape_id.substring(0,3)
+                L.geoJSON(element,
+                    {
+                        style: function(feature) {
+                            
+                            return {color: colorDict[route_id_number],
+                            opacity: 0.5,}
+    
+                        }
+                    }).setZIndex(0).bindPopup(route_id).addTo(map);       
+            }
+
+        })
+    })
+        
 function get_readable_route_id(route_id){
     switch(route_id) {
         case '801': return 'A Line (Blue)';
@@ -31,30 +59,6 @@ function get_readable_route_id(route_id){
         case '807': return 'K Line';
     }
 }
-
-fetch('https://api.metro.net/LACMTA_Rail/trip_shapes/all')
-.then(response => {
-    return response.json()
-})
-
-.then(response =>{
-    console.log(response)
-    response.forEach(element => {
-        console.log(element.properties.shape_id)
-        // let route_id = element.properties.shape_id.substring(0,3)
-        let route_id = get_readable_route_id(element.properties.shape_id.substring(0,3))
-        let route_id_number = element.properties.shape_id.substring(0,3)
-        L.geoJSON(element,
-            {
-                style: function(feature) {
-                    
-                    return {color: colorDict[route_id_number],
-                    opacity: 0.5,}
-
-                }
-            }).setZIndex(0).bindPopup(route_id).addTo(map);
-    })
-    })
 
 
 function createRealtimeLayer(url) {
@@ -79,7 +83,21 @@ function createRealtimeLayer(url) {
 var map = L.map('map'),
     realtime1 = createRealtimeLayer('https://api.metro.net/LACMTA_Rail/vehicle_positions/all?geojson=true').addTo(map);
 
+let metro_basemap = L.tileLayer('https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Hybrid_Raster_tile_Map/MapServer?f=html&cacheKey=82b4049fd59cbc4c/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+    maxZoom: 16
+}).addTo(map);
+
+let Esri_WorldGrayCanvas = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+    maxZoom: 16
+}).addTo(map);
 map.locate({setView: true, maxZoom: 16});
+// let wmsOptions = {
+//     layers: 'rail_stations (Union station/Gold),rail_stations,Metro Stations'
+// }
+let metro_arcgis_basemap = "https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Hybrid_Raster_tile_Map/MapServer/WMTS/1.0.0/WMTSCapabilities.xml?cacheKey=82b4049fd59cbc4c"
+let wmsLayer = L.tileLayer(metro_arcgis_basemap).addTo(map);
 
 function onLocationFound(e) {
     let radius = e.accuracy;
@@ -100,18 +118,30 @@ function onLocationFound(e) {
 
 map.on('locationfound', onLocationFound);
 
-let Esri_WorldGrayCanvas = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
-    maxZoom: 16
-}).addTo(map);
+
 
 map.setView([34.1709, -118.444], 8);
 
 L.control.layers(null, {
-    'Rail': realtime1
+    'Current Rail Positions': realtime1
 }).addTo(map);
 
 realtime1.once('update', function() {
     console.log('realtime1 loaded');
     // map.fitBounds(realtime1.getBounds());
 });
+
+L.esri
+.tiledMapLayer({
+  url: "https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Hybrid_Raster_tile_Map/MapServer?cacheKey=82b4049fd59cbc4c",
+  pane: "overlayPane"
+})
+.addTo(map);
+
+// L.esri.Vector.vectorTileLayer(
+//     "https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Hybrid_Vector_tile_Map/VectorTileServer"
+
+//     ).addTo(map);
+// var overlays = {
+//     "Cities": cities
+// };
