@@ -120,7 +120,8 @@ map.on('locationfound', onLocationFound);
 
 
 
-map.setView([34.1709, -118.444], 8);
+map.setView([33.9709, -118.444], 10);
+map.setMaxBounds(map.getBounds().pad(0.2));
 
 L.control.layers(null, {
     'Current Rail Positions': realtime1
