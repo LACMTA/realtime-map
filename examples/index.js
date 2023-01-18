@@ -184,7 +184,7 @@ function fetchDataFromApi(url){
                                 icon: railIcon,
                                 vehicle_id: element.properties.vehicle.vehicle_id
                             })
-                        .bindPopup('hi')
+                        .bindPopup(`<h5>Vehicle ID: ${element.properties.vehicle.vehicle_id}</h5><h5>Status: ${element.properties.current_status}</h5>`)
                         .addTo(fgroup);
                     } else {
                         // No trip/route assigned
@@ -283,9 +283,9 @@ map.on('locationfound', onLocationFound);
 map.setView([33.9709, -118.444], 10);
 map.setMaxBounds(map.getBounds().pad(0.2));
 
-L.control.layers(null, {
-    "<img src='rail-icon.png' style='max-width:16px'><img> Current Rail Vehicles": all_rail_vehicles
-},{collapsed: false}).addTo(map);
+// L.control.layers(null, {
+//     : all_rail_vehicles
+// },{collapsed: false}).addTo(map);
 
 function onEachFeature(feature, layer) {
     // does this feature have a property named popupContent?
@@ -314,3 +314,26 @@ L.esri
 // var overlays = {
 //     "Cities": cities
 // };
+
+
+L.Control.Legend = L.Control.extend({
+    onAdd: function(map) {
+      var el = L.DomUtil.create('div', 'leaflet-control-layers-expanded legend');
+  
+      el.innerHTML = "<img src='rail-icon.png' style='max-width:16px'><img> Current Rail Vehicles";
+  
+      return el;
+    },
+  
+    onRemove: function(map) {
+      // Nothing to do here
+    }
+  });
+  
+  L.control.legend = function(options) {
+    return new L.Control.Legend(options);
+  }
+  
+  L.control.legend({
+    position: 'topright'
+  }).addTo(map);
