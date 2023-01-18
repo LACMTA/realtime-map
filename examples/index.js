@@ -85,7 +85,7 @@ fetch('https://api.metro.net/LACMTA_Rail/trip_shapes/all')
                         style: function(feature) {
                             
                             return {color: colorDict[route_id_number],
-                            opacity: 0.5,};
+                            opacity: 0.5,weight: 5};
                         }
                     }).setZIndex(0).bindPopup(route_id).addTo(map);       
             }
