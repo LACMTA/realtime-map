@@ -8,6 +8,23 @@
   />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.0.6/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.0.6/dist/MarkerCluster.Default.css" />
+
+
+    <!-- Include base CSS (optional) -->
+    <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/base.min.css"
+    />
+
+    <!-- Include Choices CSS -->
+    <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"
+    />
+
+    <!-- Include Choices JavaScript (latest) -->
+    <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+
     <style>
         #map {
             position: absolute;
@@ -19,6 +36,9 @@
     </style>
 </head>
 <body>
+    <div>
+          Route: <select id="route" name="route" class="choices__input choices__input--cloned" placeholder="true" multiple="true" data-placeholder="true" data-choice="active" tabindex="0" aria-autocomplete="list" role="combobox" aria-haspopup="true" aria-expanded="false" style="width: 100%; height: 100%; opacity: 1; position: absolute; top: 0px; left: 0px; pointer-events: none; box-sizing: border-box; border: 0px; margin: 0px; padding: 0px; font-size: 1em; font-family: inherit; font-weight: inherit; line-height: inherit; color: inherit; background: none; display: block; white-space: pre; overflow: hidden; text-overflow: ellipsis; word-wrap: break-word; -webkit-appearance: none; -moz-appearance: none; appearance: none; background-color: rgb(255, 255, 255);"></select>  
+    </div>
     <div id="map"></div>
       <!-- <script src="https://unpkg.com/leaflet-drift-marker@2.0.0/lib/index.js"></script> -->
       

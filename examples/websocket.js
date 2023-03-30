@@ -121,50 +121,134 @@ const refreshTime = 5000; // in milliseconds
 
 let initalLoad = false;
 let geojson_layer_group = new L.LayerGroup().addTo(map);
-const socket = new WebSocket("wss://api.metro.net/LACMTA/live/trip_detail/route_code/720?geojson=True");
+// const socket = new WebSocket("ws://localhost/LACMTA/live/trip_detail/route_code/720?geojson=True");
+let socket
 
 // Connection opened
-socket.addEventListener("open", (event) => {
-  socket.send("Hello Server!");
-});
+// socket.addEventListener("open", (event) => {
+//   socket.send("Hello Server!");
+// });
+function pingWebsocketEveryFiveSeconds(){
+    setInterval(function() {
+        ping()
+      }, refreshTime);
+}
+
+function tryPingingWebsocketWhilePageLoaded(){
+    pingWebsocketEveryFiveSeconds()
+}
+
+// function repeatWhileWebsocketIsOpen(){
+//     while (socket.readyState == WebSocket.OPEN){
+//         console.log("pinging websocket")
+//         pingWebsocketEveryFiveSeconds()
+//     }
+// }
+function connectToWebsocket(route_code){
+    if (socket != null) {
+        socket.close()
+    }
+    socket = new WebSocket("wss://api.metro.net/LACMTA/live/trip_detail/route_code/" + route_code + "?geojson=True");
+
+    socket.onopen = function(event) {
+        console.log("Connected to websocket");
+        console.log(event)
+        updateMapBasedOnWebsocketData(event.data)
+    }
+
+    socket.addEventListener("open", (event) => {
+        socket.send("Hello Server!");
+      });
+
+    socket.addEventListener("message", (event) => {
+        socket.onmessage = function(event) {
+            updateMapBasedOnWebsocketData(event.data)
+        };
+    });
+    
+}
+
+function updateMapBasedOnWebsocketData(data){
+    let websocketData;
+    websocketData = JSON.parse(data);
+    console.log(websocketData)
+    showAndUpdateCount();
+    if (websocketData.type == "FeatureCollection") {
+        geojson_layer_group.clearLayers();
+        // websocketData.features.forEach(feature => {
+        //     feature.properties.color = colorDict[feature.properties.status]},
+        //     onEachFeature = function(feature, layer) {
+        //         layer.bindPopup(feature.properties.status);
+        //     });
+        
+        geojson_layer_group.addLayer(L.geoJson(websocketData, {
+            pointToLayer: function(feature, latlng) {
+                if (feature.properties.trip_assigned == true){
+                    return L.circleMarker(latlng, geojsonMarkerOptions);
+                }
+            },
+            onEachFeature: onEachFeature
+        }));
+        geojson_layer_group.addTo(map);
+    } else {
+        console.error("Got something other than a geojson feature");
+    };
+
+    pong();
+
+}
+
+
+let route_code = 720
+function init(){
+    connectToWebsocket(route_code)
+    tryPingingWebsocketWhilePageLoaded()
+}
+
+const statusColorDict= {
+    "IN_TRANSIT_TO": "#0072bc",
+    "STOPPED_AT": "#e3131b"
+}
+
+let tm;
+function ping() {
+    socket.send('__ping__');
+    tm = setTimeout(function () {
+
+       /// ---connection closed ///
+
+
+}, 5000);
+}
+
+function pong() {
+    clearTimeout(tm);
+}
+
+
 
 // Listen for messages
-socket.addEventListener("message", (event) => {
 
 
-    socket.onmessage = function(event) {
-        let websocketData;
-        
-        websocketData = JSON.parse(event.data);
-        console.log(websocketData)
-        if (websocketData.type == "FeatureCollection") {
-            geojson_layer_group.clearLayers();
-            // websocketData.features.forEach(feature => {
-            //     feature.properties.color = colorDict[feature.properties.status]},
-            //     onEachFeature = function(feature, layer) {
-            //         layer.bindPopup(feature.properties.status);
-            //     });
+function onEachFeature(feature, layer) {
+    layer.on({
+      // TODO: will add highlight and unhighlight events later when I have time
+      click: layer.bindPopup("<h3>Destination:<br>"+feature.properties.trip.destination_code+"</h3> Status: "+feature.properties.current_status+"<br> Stop Name: "+feature.properties.stop_name+"<br>")
+    });
+  }
 
-            geojson_layer_group.addLayer(L.geoJson(websocketData));
-            geojson_layer_group.addTo(map);
-        } else {
-            console.error("Got something other than a geojson feature");
-        };
-    };
-});
-
-window.addEventListener("load", (event) => {
+// window.addEventListener("load", (event) => {
 
 
-    // ws = new WebSocket('wss://api.metro.net/LACMTA/live/trip_detail/route_code/720?geojson=True');
-    // ws.onopen = function() {
-    //     console.log("Opened");
-    // };
-    // ws.onclose = function() {
-    //     console.log("Closed");
-    // };
+//     // ws = new WebSocket('wss://api.metro.net/LACMTA/live/trip_detail/route_code/720?geojson=True');
+//     // ws.onopen = function() {
+//     //     console.log("Opened");
+//     // };
+//     // ws.onclose = function() {
+//     //     console.log("Closed");
+//     // };
 
-});
+// });
   
 
 // function refreshMapData(url){
@@ -237,18 +321,18 @@ map.setMaxBounds(map.getBounds().pad(0.2));
 //     : all_rail_vehicles
 // },{collapsed: false}).addTo(map);
 
-function onEachFeature(feature, layer) {
-    // does this feature have a property named popupContent?
-    console.log(feature)
-        for (const point in feature) {
+// function onEachFeature(feature, layer) {
+//     // does this feature have a property named popupContent?
+//     console.log(feature)
+//         for (const point in feature) {
 
-            if (feature.hasOwnProperty(point)) {
+//             if (feature.hasOwnProperty(point)) {
         
-                const element = feature[point];
-                element.slideTo(element.geometry.coordinates, slideOptions)
-            }
-        }
-}
+//                 const element = feature[point];
+//                 element.slideTo(element.geometry.coordinates, slideOptions)
+//             }
+//         }
+// }
 
 L.esri
 .tiledMapLayer({
@@ -264,13 +348,16 @@ L.esri
 // var overlays = {
 //     "Cities": cities
 // };
-
-
+let updateCount = 0;
+function showAndUpdateCount() {
+    updateCount++;
+    document.getElementById('updateCount').innerHTML = "Total Updates: "+updateCount + "<br>Last at " + new Date().toLocaleTimeString();
+}
 L.Control.Legend = L.Control.extend({
     onAdd: function(map) {
       var el = L.DomUtil.create('div', 'leaflet-control-layers-expanded legend');
   
-      el.innerHTML = "<img src='rail-icon.png' style='max-width:16px'><img> Current Rail Vehicles";
+      el.innerHTML = "<div id='updateCount'>Loading updates<br>...</div><svg height='10' width='10'><circle cx='5' cy='5' r='4' stroke='black' stroke-width='1' fill='orange' /></svg>"+route_code+" Vehicles";
   
       return el;
     },
@@ -287,3 +374,25 @@ L.Control.Legend = L.Control.extend({
   L.control.legend({
     position: 'topright'
   }).addTo(map);
+
+
+
+L.Control.Form = L.Control.extend({
+    onAdd: function(map) {
+        let div = L.DomUtil.create('div');
+        div.innerHTML = "<form><input type='text' id='route_code' name='route_code' placeholder='Route Code'><input type='submit' value='Submit'></form>"
+        return div;
+    },
+
+    onRemove: function(map) {
+        // Nothing to do here
+    }
+});
+
+L.control.form = function(opts) {
+    return new L.Control.Form(opts);
+}
+
+L.control.form({ position: 'topright' }).addTo(map);
+
+init();
