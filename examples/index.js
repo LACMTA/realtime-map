@@ -144,8 +144,8 @@ window.addEventListener("load", (event) => {
     fetchDataFromApi('https://api.metro.net/LACMTA_Rail/vehicle_positions/all?geojson=true');
 });
   
-
 function refreshMapData(url){
+    document.getElementById('updateTime').innerHTML = "Updated at: " + new Date().toLocaleTimeString();
     fetchDataFromApi(url);
 }
 function getTripDetails(url){
@@ -320,7 +320,7 @@ L.Control.Legend = L.Control.extend({
     onAdd: function(map) {
       var el = L.DomUtil.create('div', 'leaflet-control-layers-expanded legend');
   
-      el.innerHTML = "<img src='rail-icon.png' style='max-width:16px'><img> Current Rail Vehicles";
+      el.innerHTML = "<img src='rail-icon.png' style='max-width:16px'><img> Current Rail Vehicles<br><div id='updateTime'></div>";
   
       return el;
     },
