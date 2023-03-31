@@ -145,7 +145,7 @@ window.addEventListener("load", (event) => {
 });
   
 function refreshMapData(url){
-    document.getElementById('updateTime').innerHTML = "Updated at: " + new Date().toLocaleTimeString();
+
     fetchDataFromApi(url);
 }
 function getTripDetails(url){
@@ -174,9 +174,14 @@ function fetchDataFromApi(url){
                 initalLoad = true;
 
                 console.log('initial load');
+                let count = 0
                 response.features.forEach(element => {
                     // Add each element to the appropriate FeatureGroup
                     if (element.properties.trip.hasOwnProperty('route_id')) {
+                        if (count == 0) {
+                            document.getElementById('updateTime').innerHTML = "Updated at: " + new Date().toLocaleTimeString();
+                            count++;
+                        }
                         let route = element.properties.trip.route_id;
                         let fgroup = railLinesDict[route].layer;
                         L.marker([element.geometry.coordinates[1], element.geometry.coordinates[0]], 
@@ -193,7 +198,7 @@ function fetchDataFromApi(url){
                 });
             } else {
                 console.log('repeated load');
-                
+                document.getElementById('updateTime').innerHTML = "Updated at: " + new Date().toLocaleTimeString();
                 // if vehicles already exist on map, update their coordinates
                 response.features.forEach(element => {
                     if (element.properties.trip.hasOwnProperty('route_id')) {
