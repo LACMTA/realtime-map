@@ -88,6 +88,17 @@ fetch('https://api.metro.net/LACMTA_Rail/trip_shapes/all')
                             opacity: 0.5,weight: 5};
                         }
                     }).setZIndex(0).bindPopup(route_id).addTo(map);       
+            } else {
+                let route_id_number = element.properties.shape_id.substring(0,3)
+                L.geoJSON(element,
+                    {
+                        style: function(feature) {
+                            
+                            return {color: colorDict[route_id_number],
+                            opacity: 0.5,weight: 5};
+                        }
+                    }).setZIndex(0).bindPopup(route_id).addTo(map);
+                    
             }
         })
     })
@@ -210,7 +221,7 @@ function fetchDataFromApi(url){
                         featureGroup.eachLayer(function(feature) {
                             // updates Marker position if it exists on the map
                             if (feature.options.vehicle_id == element.properties.vehicle.vehicle_id) {
-                                console.log('vehicle match found: ' + feature.options.vehicle_id);
+                                // console.log('vehicle match found: ' + feature.options.vehicle_id);
                                 var newLatLng = new L.LatLng(element.geometry.coordinates[1], element.geometry.coordinates[0]);
                                 feature.setLatLng(newLatLng); 
                             }
@@ -246,15 +257,15 @@ function createRailFeatureGroups(map) {
 
 // realtime1 = createRealtimeLayer('https://api.metro.net/LACMTA_Rail/vehicle_positions/all?geojson=true').addTo(map);
 
-let metro_basemap = L.tileLayer('https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Hybrid_Raster_tile_Map/MapServer?f=html&cacheKey=82b4049fd59cbc4c/tile/{z}/{y}/{x}', {
-    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
-    maxZoom: 16
-}).addTo(map);
+// let metro_basemap = L.tileLayer('https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Hybrid_Raster_tile_Map/MapServer?f=html&cacheKey=82b4049fd59cbc4c/tile/{z}/{y}/{x}', {
+//     attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+//     maxZoom: 16
+// }).addTo(map);
 
-let Esri_WorldGrayCanvas = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
-    maxZoom: 16
-}).addTo(map);
+// let Esri_WorldGrayCanvas = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+//     attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+//     maxZoom: 16
+// }).addTo(map);
 map.locate({setView: true, maxZoom: 16});
 
 // let wmsOptions = {
@@ -305,12 +316,17 @@ function onEachFeature(feature, layer) {
         }
 }
 
-L.esri
-.tiledMapLayer({
-  url: "https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Hybrid_Raster_tile_Map/MapServer?cacheKey=82b4049fd59cbc4c",
-  pane: "overlayPane"
-})
-.addTo(map);
+// L.esri
+// .tiledMapLayer({
+//   url: "https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Hybrid_Raster_tile_Map/MapServer?cacheKey=82b4049fd59cbc4c",
+//   pane: "overlayPane"
+// })
+// .addTo(map);
+
+
+// L.esri.Vector.vectorTileLayer(
+//     "https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Hybrid_Vector_tile_Map/VectorTileServer/"
+//   ).addTo(map);
 
 // L.esri.Vector.vectorTileLayer(
 //     "https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Hybrid_Vector_tile_Map/VectorTileServer"
@@ -342,3 +358,63 @@ L.Control.Legend = L.Control.extend({
   L.control.legend({
     position: 'topright'
   }).addTo(map);
+
+
+
+
+const esriTilesUrl = "https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Hybrid_Vector_tile_Map/VectorTileServer/tile/{z}/{y}/{x}.pbf?cacheKey=82b4049fd59cbc4c";
+
+const url = "https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Hybrid_Vector_tile_Map/VectorTileServer/resources/styles/root.json";
+
+const prepareStyle = async () => {
+  // object to store layer descriptions
+  const vectorTileLayerStyles = {};
+
+  // get the actual JSON style file from the ArcGIS REST endpoint
+  const { data } = await axios.get(url);
+
+  // loop over the layers property specifically for the JSON style
+  data.layers.forEach(layer => {
+    // only work with layers that are 'type === line', in this case.
+    // Modify as needed, but ArcGIS Vector labels do not work for me in the current version
+    const layerName = layer["source-layer"];
+    if (layer.type === "line") {
+      // add layer to style placeholder using layer name property
+      vectorTileLayerStyles[layerName] = {
+        weight: layerName === "TaxParcels" ? .1 : .5, // dynamic weight assignment
+        color: layer.paint["line-color"],
+        opacity: 1
+      };
+    } else {
+      // if the layer type is not a line, make the layer transparent
+      vectorTileLayerStyles[layerName] = {
+        opacity: 0
+      };
+    }
+  });
+
+  return vectorTileLayerStyles;
+};
+
+const friendlyStyleObject = await prepareStyle();
+
+// friendlyStyleObject can be used in the constructor options for VectorGrid
+
+// console.log(friendlyStyleObject['TaxParcels']);
+
+/*
+  Expected console.log output:
+  {
+    weight: 2, 
+    color: "rgba(207,198,165,0.9)", 
+    opacity: 1
+  }
+*/
+let esriVectorTileOptions = {
+    rendererFactory: L.canvas.tile,
+    attribution: '© ESRI',
+    vectorTileLayerStyles: friendlyStyleObject,
+};
+
+let  esriTilesPbfLayer = L.vectorGrid.protobuf(esriTilesUrl, esriVectorTileOptions);
+esriTilesPbfLayer.addTo(map);
