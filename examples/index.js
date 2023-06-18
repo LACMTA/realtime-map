@@ -20,6 +20,12 @@ let railIcon = L.icon({
     zIndex: -1
 });
 
+let stopIcon = L.icon({
+    iconUrl: 'stop-icon.svg',
+    iconSize: [10, 10],
+    zIndex: -2
+});
+
 let map = L.map('map', {
     minZoom: 10,
     maxZoom: 16
@@ -37,81 +43,99 @@ const colorDict= {
 
 const railLinesDict = {
     801: {
-        name: 'A Line (Blue)',
+        name: 'A Line',
         color: '#0072bc'
     },
     802: {
-        name: 'B Line (Red)',
+        name: 'B Line',
         color: '#e3131b'
     },
     803: {
-        name: 'C Line (Green)',
+        name: 'C Line',
         color: '#58a738'
     },
     804: {
-        name: 'L Line (Gold)',
+        name: 'E Line',
         color: '#fdb913'
     },
     805: {
-        name: 'D Line (Purple)',
+        name: 'D Line',
         color: '#a05da5'
     },
-    806: {
-        name: 'E Line (Expo)',
-        color: '#5bc2e7'
-    },
     807: {
-        name: 'K Line (Crenshaw)',
+        name: 'K Line',
         color: '#e96bb0'
     }
 };
 
+let shapes801 = [];
+let shapes802 = [];
+let shapes803 = [];
+let shapes804 = [];
+let shapes805 = [];
+let shapes807 = [];
 
+window.railShapes.forEach(shape => {
+    if (shape["shape_id"].startsWith('801')) {
+        shapes801.push([
+            shape["shape_pt_lat"],
+            shape["shape_pt_lon"]
+        ]);
+    }
+    if (shape["shape_id"].startsWith('802')) {
+        shapes802.push([
+            shape["shape_pt_lat"],
+            shape["shape_pt_lon"]
+        ]);
+    }
+    if (shape["shape_id"].startsWith('803')) {
+        shapes803.push([
+            shape["shape_pt_lat"],
+            shape["shape_pt_lon"]
+        ]);
+    }
+    if (shape["shape_id"].startsWith('804')) {
+        shapes804.push([
+            shape["shape_pt_lat"],
+            shape["shape_pt_lon"]
+        ]);
+    }
+    if (shape["shape_id"].startsWith('805')) {
+        shapes805.push([
+            shape["shape_pt_lat"],
+            shape["shape_pt_lon"]
+        ]);
+    }
+    if (shape["shape_id"].startsWith('807')) {
+        shapes807.push([
+            shape["shape_pt_lat"],
+            shape["shape_pt_lon"]
+        ]);
+    }
+})
 
-fetch('https://api.metro.net/LACMTA_Rail/trip_shapes/all')
-    .then(response => {
-        return response.json()
-    })
-    .then(response =>{
-        console.log(response)
-        response.forEach(element => {
-            // console.log(element.properties.shape_id)
-            let route_id = get_readable_route_id(element.properties.shape_id.substring(0,3))
-            console.log(route_id)
-            if (route_id == 'K Line (Crenshaw)'){
-                let route_id_number = element.properties.shape_id.substring(0,3)
-                L.geoJSON(element,
-                    {
-                        style: function(feature) {
-                            
-                            return {color: colorDict[route_id_number],
-                            opacity: 0.5,weight: 5};
-                        }
-                    }).setZIndex(0).bindPopup(route_id).addTo(map);       
-            } else {
-                let route_id_number = element.properties.shape_id.substring(0,3)
-                L.geoJSON(element,
-                    {
-                        style: function(feature) {
-                            
-                            return {color: colorDict[route_id_number],
-                            opacity: 0.5,weight: 5};
-                        }
-                    }).setZIndex(0).bindPopup(route_id).addTo(map);
-                    
-            }
-        })
-    })
+L.polyline(shapes801, {color: colorDict[801]}).addTo(map);
+L.polyline(shapes802, {color: colorDict[802]}).addTo(map);
+L.polyline(shapes803, {color: colorDict[803]}).addTo(map);
+L.polyline(shapes804, {color: colorDict[804]}).addTo(map);
+L.polyline(shapes805, {color: colorDict[805]}).addTo(map);
+L.polyline(shapes807, {color: colorDict[807]}).addTo(map);
+
+window.railStops.forEach(stop => {
+    if (stop["tpis_name"]) {
+        console.log(stop["tpis_name"])
+        L.marker([stop["stop_lat"], stop["stop_lon"]], { icon: stopIcon }).addTo(map).bindPopup('<b>' + stop["stop_name"] + '</b><br>' + stop["stop_id"]);
+    }
+})
         
 function get_readable_route_id(route_id){
     switch(route_id) {
-        case '801': return 'A Line (Blue)';
-        case '802': return 'B Line (Red)';
-        case '803': return 'C Line (Green)';
-        case '804': return 'L Line (Gold)';
-        case '805': return 'D Line (Purple)';
-        case '806': return 'E Line (Expo)';
-        case '807': return 'K Line (Crenshaw)';
+        case '801': return 'A Line';
+        case '802': return 'B Line';
+        case '803': return 'C Line';
+        case '804': return 'E Line';
+        case '805': return 'D Line';
+        case '807': return 'K Line';
     }
 }
 
@@ -200,8 +224,9 @@ function fetchDataFromApi(url){
                                 icon: railIcon,
                                 vehicle_id: element.properties.vehicle.vehicle_id
                             })
-                        .bindPopup(`<h5>Vehicle ID: ${element.properties.vehicle.vehicle_id}</h5><h5>Status: ${element.properties.current_status}</h5>`)
+                        .bindPopup('<b>' + get_readable_route_id(element.properties.trip["route_id"]) + '</b><br>' + element.properties.vehicle["vehicle_id"])
                         .addTo(fgroup);
+                        console.log(element.properties)
                     } else {
                         // No trip/route assigned
                     }
