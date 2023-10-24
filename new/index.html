@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <script src=https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js></script>
+    <link href=https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css rel="stylesheet" />
+    <style>
+      html,
+      body,
+      #map {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 14px;
+        color: #323232;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="map"></div>
+  </body>
+
+  <script>
+    const apiKey = "YOUR_API_KEY";
+    const basemapEnum = "ArcGIS:Streets";
+    const map = new maplibregl.Map({
+      container: "map", // the id of the div element
+      style: 'style.json',
+      zoom: 12, // starting zoom
+      center: [-118.805, 34.027] // starting location [longitude, latitude]
+    });
+
+  </script>
+
+</html>

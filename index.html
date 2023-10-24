@@ -1,13 +1,161 @@
 <!DOCTYPE html>
 <html lang="en">
-<body onload="init()">
-    <div id="map"></div>
+<head>
+  <title>Display buildings in 3D</title>
+  <meta property="og:description" content="Use extrusions to display buildings' height in 3D." />
+  <meta charset='utf-8'>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://unpkg.com/mapbox-gl-esri-sources@0.0.7/dist/mapbox-gl-esri-sources.js"></script>
+  <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@3.5.1/dist/maplibre-gl.css' />
+  <script src='https://unpkg.com/maplibre-gl@3.5.1/dist/maplibre-gl.js'></script>
+  <style>
+      body { margin: 0; padding: 0; }
 
-    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
-    <link rel="stylesheet" href="styles/style.css" />
+      html, body, #map { height: 100%; }
 
-    <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
-    <script src="/js/init.js"></script>
+        .marker {
+            display: block;
+            visibility: visible !important;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            padding: 0;
 
-  </body>
+        }
+    
+    </style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+  const MAPTILER_KEY = 'get_your_own_OpIi9ZULNHzrESv6T2vL';
+  const map = new maplibregl.Map({
+      style: `https://api.maptiler.com/maps/basic-v2/style.json?key=${MAPTILER_KEY}`,
+      center: [-118.270293, 34.039737],
+      zoom: 10.5,
+      pitch: 45,
+      bearing: -17.6,
+      container: 'map',
+      antialias: true
+  });
+
+  let url = 'https://api.metro.net/LACMTA_Rail/vehicle_positions/all?geojson=true'
+  // The 'building' layer in the streets vector source contains building-height
+  // data from OpenStreetMap.
+  map.on('load', () => {
+      // Insert the layer beneath any symbol layer.
+      const layers = map.getStyle().layers;
+
+      let labelLayerId;
+      for (let i = 0; i < layers.length; i++) {
+          if (layers[i].type === 'symbol' && layers[i].layout['text-field']) {
+              labelLayerId = layers[i].id;
+              break;
+          }
+      }
+      new mapboxglEsriSources.TiledMapService('imagery-source', map, {
+        url: 'https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Map_RGB_Vector_Offset_RC5/MapServer'
+    })
+
+    map.addLayer({
+      id: 'imagery-layer',
+      type: 'raster',
+      source: 'imagery-source'
+  })
+    map.addSource('openmaptiles', {
+          url: `https://api.maptiler.com/tiles/v3/tiles.json?key=${MAPTILER_KEY}`,
+          type: 'vector',
+      });
+
+      map.addSource('vehicles', {
+        type: 'geojson',
+        data: url,
+    });
+      window.setInterval(function () {
+          map.getSource('vehicles').setData(url);
+          
+      }, 5000);
+
+    let vehicle_positions = fetch(url)
+    .then(response => response.json())
+    .then(data => {
+ 
+
+    // add markers to map
+    data.features.forEach((marker) => {
+      // create a DOM element for the marker
+      const el = document.createElement('div');
+      el.className = 'marker';
+      el.style.backgroundImage =
+          `url(rail.svg)`;
+      el.style.backgroundRepeat = 'no-repeat';
+      el.style.backgroundSize = 'cover';
+      el.style.backgroundPosition = 'center';
+      el.style.backgroundColor = 'white';
+      el.style.borderRadius = '50%';
+      el.style.cursor = 'pointer';
+      el.style.width = `24px`;
+      el.style.height = `24px`;
+
+      el.addEventListener('click', () => {
+        new maplibregl.Popup()
+        .setHTML(`<h3>${marker.properties.vehicle_id}</h3>`)
+      
+      });
+
+
+      // add marker to map
+      new maplibregl.Marker({element: el})
+          .setLngLat(marker.geometry.coordinates)
+          .addTo(map);
+
+  });
+      return data
+    })
+    .catch(err => console.log(err))
+
+
+
+      map.addLayer({
+        'id': 'vehicles',
+        'type': 'symbol',
+        'source': 'vehicles',
+        'layout': {
+            'icon-image': 'rail',
+        }
+    });
+      map.addLayer(
+          {
+              'id': '3d-buildings',
+              'source': 'openmaptiles',
+              'source-layer': 'building',
+              'type': 'fill-extrusion',
+              'minzoom': 14,
+              'paint': {
+                  'fill-extrusion-color': [
+                      'interpolate',
+                      ['linear'],
+                      ['get', 'render_height'], 0, 'lightgray', 200, 'royalblue', 400, 'lightblue'
+                  ],
+                  'fill-extrusion-height': [
+                      'interpolate',
+                      ['linear'],
+                      ['zoom'],
+                      15,
+                      0,
+                      16,
+                      ['get', 'render_height']
+                  ],
+                  'fill-extrusion-base': ['case',
+                      ['>=', ['get', 'zoom'], 16],
+                      ['get', 'render_min_height'], 0
+                  ]
+              }
+          },
+          labelLayerId
+      );
+
+    });
+</script>
+</body>
 </html>

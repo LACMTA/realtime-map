@@ -257,10 +257,10 @@ function createRailFeatureGroups(map) {
 
 // realtime1 = createRealtimeLayer('https://api.metro.net/LACMTA_Rail/vehicle_positions/all?geojson=true').addTo(map);
 
-// let metro_basemap = L.tileLayer('https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Hybrid_Raster_tile_Map/MapServer?f=html&cacheKey=82b4049fd59cbc4c/tile/{z}/{y}/{x}', {
-//     attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
-//     maxZoom: 16
-// }).addTo(map);
+let metro_basemap = L.tileLayer('https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Hybrid_Raster_tile_Map/MapServer?f=html&cacheKey=82b4049fd59cbc4c/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+    maxZoom: 16
+}).addTo(map);
 
 // let Esri_WorldGrayCanvas = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
 //     attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
@@ -277,19 +277,19 @@ let wmsLayer = L.tileLayer(metro_arcgis_basemap).addTo(map);
 
 function onLocationFound(e) {
     let radius = e.accuracy;
-    let current_location_marker_options = {
-        radius: 5,
-        fillColor: "#007800",
-        color: "#000",
-        weight: 1,
-        opacity: 1,
-        fillOpacity: 0.5
+    // let current_location_marker_options = {
+    //     radius: 5,
+    //     fillColor: "#007800",
+    //     color: "#000",
+    //     weight: 1,
+    //     opacity: 1,
+    //     fillOpacity: 0.5
 
-    };
+    // };
 
-    L.circle(e.latlng, radius).addTo(map);
-    L.circleMarker(e.latlng, current_location_marker_options).addTo(map)
-    .bindPopup("You are within " + radius + " meters from this point").openPopup();
+    // L.circle(e.latlng, radius).addTo(map);
+    // L.circleMarker(e.latlng, current_location_marker_options).addTo(map)
+    // .bindPopup("You are within " + radius + " meters from this point").openPopup();
 }
 
 map.on('locationfound', onLocationFound);
@@ -378,14 +378,26 @@ const prepareStyle = async () => {
     // only work with layers that are 'type === line', in this case.
     // Modify as needed, but ArcGIS Vector labels do not work for me in the current version
     const layerName = layer["source-layer"];
+    // console.log('layerName.fillColor')
+    console.log(layer)
     if (layer.type === "line") {
       // add layer to style placeholder using layer name property
       vectorTileLayerStyles[layerName] = {
         weight: layerName === "TaxParcels" ? .1 : .5, // dynamic weight assignment
         color: layer.paint["line-color"],
+        fillColor: layer.paint["fill-color"],
         opacity: 1
       };
-    } else {
+    } 
+    else if (layer.type === "fill" && layer.paint['fill-color']) {
+        // add layer to style placeholder using layer name property
+        vectorTileLayerStyles[layerName] = {
+            
+          color: layer.paint["fill-color"],
+          opacity: 1
+        };
+    }
+    else {
       // if the layer type is not a line, make the layer transparent
       vectorTileLayerStyles[layerName] = {
         opacity: 0
