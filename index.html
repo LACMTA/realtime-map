@@ -28,16 +28,18 @@
 <body>
 <div id="map"></div>
 <script>
-  const MAPTILER_KEY = 'get_your_own_OpIi9ZULNHzrESv6T2vL';
-  const map = new maplibregl.Map({
-      style: `https://api.maptiler.com/maps/basic-v2/style.json?key=${MAPTILER_KEY}`,
-      center: [-118.270293, 34.039737],
-      zoom: 10.5,
-      pitch: 45,
-      bearing: -17.6,
-      container: 'map',
-      antialias: true
+
+  let map = new maplibregl.Map({
+    container: 'map',
+    center: [-118.270293, 34.039737],
+    zoom: 10.5,
+    pitch: 45,
+    bearing: -17.6,
+    container: 'map',
+    antialias: true,
+    style: 'https://demotiles.maplibre.org/style.json' // style URL
   });
+  
 
   let url = 'https://api.metro.net/LACMTA_Rail/vehicle_positions/all?geojson=true'
   // The 'building' layer in the streets vector source contains building-height
