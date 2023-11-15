@@ -22,15 +22,38 @@
             padding: 0;
 
         }
-    
+        .current-time {
+          position: fixed;
+          top: 10px;
+          right: 10px;
+          background-color: white;
+          padding: 10px;
+          border: 1px solid black;
+        }
     </style>
 </head>
 <body>
 <div id="map"></div>
 <script>
+// config options
   const ESRI_KEY =  "AAPKccc2cf38fecc47649e91529acf524abflSSkRTjWwH0AYmZi8jaRo-wdpcTf6z67CLCkOjVYlw3pZyUIF_Y4KGBndq35Y02z";
   const MAPTILER_KEY = "KydZlIiVFdYDFFfQ4QYq"
   const basemapEnum = "65aff2873118478482ec3dec199e9058";
+
+
+// Get the current time
+const now = new Date();
+
+// Create a div element
+const updateTimeDiv = document.createElement('div');
+
+// Set the div's text content to the current time
+updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
+updateTimeDiv.classList.add('current-time');
+// Add the div to the document body
+document.body.appendChild(updateTimeDiv);
+
+// map setup
 
   let map = new maplibregl.Map({
     container: 'map',
@@ -44,9 +67,8 @@
     style: `https://basemapstyles-api.arcgis.com/arcgis/rest/services/styles/v2/styles/items/${basemapEnum}?token=${ESRI_KEY}`,
   });
   
-//  style: 'https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Hybrid_Vector_tile_Map/VectorTileServer/resources/styles/root.json' 
-
-  let url = 'https://api.metro.net/LACMTA_Rail/vehicle_positions/all?geojson=true'
+  
+  
   // The 'building' layer in the streets vector source contains building-height
   // data from OpenStreetMap.
   map.on('load', () => {
@@ -69,53 +91,72 @@
       type: 'raster',
       source: 'imagery-source'
   })
+  let apiUrl = 'https://api.metro.net/LACMTA_Rail/vehicle_positions?format=geojson'
 
       map.addSource('vehicles', {
         type: 'geojson',
-        data: url,
+        data: apiUrl,
     });
       window.setInterval(function () {
-          map.getSource('vehicles').setData(url);
-          
-      }, 5000);
+        
+          console.log(`trying to update`)
+          fetch(apiUrl)
+              .then(response => response.json())
+              
+              .then(data => {
+                console.log(data)
 
-    let vehicle_positions = fetch(url)
-    .then(response => response.json())
-    .then(data => {
- 
+                if (data.length > 0) {
+                  updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
+                }
+                  const features = data.features.map(vehicle => {
+                      const el = document.createElement('div');
+                      el.className = 'marker';
+                      el.style.backgroundImage =
+                          `url(rail.svg)`;
+                      el.style.backgroundRepeat = 'no-repeat';
+                      el.style.backgroundSize = 'cover';
+                      el.style.backgroundPosition = 'center';
+                      el.style.backgroundColor = 'white';
+                      el.style.borderRadius = '50%';
+                      el.style.cursor = 'pointer';
+                      el.style.width = `24px`;
+                      el.style.height = `24px`;
 
-    // add markers to map
-    data.features.forEach((marker) => {
-      // create a DOM element for the marker
-      const el = document.createElement('div');
-      el.className = 'marker';
-      el.style.backgroundImage =
-          `url(rail.svg)`;
-      el.style.backgroundRepeat = 'no-repeat';
-      el.style.backgroundSize = 'cover';
-      el.style.backgroundPosition = 'center';
-      el.style.backgroundColor = 'white';
-      el.style.borderRadius = '50%';
-      el.style.cursor = 'pointer';
-      el.style.width = `24px`;
-      el.style.height = `24px`;
-
-      el.addEventListener('click', () => {
-        new maplibregl.Popup()
-        .setHTML(`<h3>${marker.properties.vehicle_id}</h3>`)
-      
-      });
+                      el.addEventListener('click', () => {
+                        new maplibregl.Popup()
+                        .setHTML(`<h3>${vehicle.properties.vehicle_id}</h3>`)
+                      
+                      });
 
 
-      // add marker to map
-      new maplibregl.Marker({element: el})
-          .setLngLat(marker.geometry.coordinates)
-          .addTo(map);
+                      // add marker to map
+                      new maplibregl.Marker({element: el})
+                          .setLngLat(vehicle.geometry.coordinates)
+                          .addTo(map);
+                      const feature = {
+                          type: 'Feature',
+                          geometry: {
+                              type: 'Point',
+                              coordinates: [vehicle.geometry[0], vehicle.geometry[1]]
+                          },
+                          properties: {
+                              Heading: vehicle.properties.bearing * 45
+                          }
+                      };
+                      return feature;
+                  });
+                  map.getSource('vehicles').setData({
+                      type: 'FeatureCollection',
+                      features: features
+                  });
 
-  });
-      return data
-    })
-    .catch(err => console.log(err))
+                  // Update the Updated at                  const now = new Date();
+                  updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
+              });
+
+      }, 9000);
+
 
     map.addSource('openmaptiles', {
       url: `https://api.maptiler.com/tiles/v3/tiles.json?key=${MAPTILER_KEY}`,
@@ -129,6 +170,8 @@
         'source': 'vehicles',
         'layout': {
             'icon-image': 'rail',
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true
         }
     });
       map.addLayer(
@@ -164,6 +207,8 @@
       );
 
     });
+
+  
 </script>
 </body>
 </html>
