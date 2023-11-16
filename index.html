@@ -22,6 +22,15 @@
             padding: 0;
 
         }
+        .arrow {
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-bottom: 10px solid black;
+            position: relative;
+            top: -5px;
+        }   
         .current-time {
           position: fixed;
           top: 10px;
@@ -102,7 +111,6 @@ document.body.appendChild(updateTimeDiv);
     });
 // Create a map of vehicle IDs to markers
 let markers = {};
-
 window.setInterval(function () {
     console.log(`trying to update`)
     fetch(apiUrl)
@@ -115,25 +123,78 @@ window.setInterval(function () {
 
         // For each vehicle in the data
         data.features.forEach(vehicle => {
+
             // If a marker for this vehicle already exists
             if (markers[vehicle.properties.vehicle_id]) {
-                // Update the marker's position
-                markers[vehicle.properties.vehicle_id].setLngLat(vehicle.geometry.coordinates);
+                updateArrow(vehicle)
+                // Get the current coordinates of the marker
+                var currentCoordinates = markers[vehicle.properties.vehicle_id].getLngLat();
+                
+                // Calculate the difference in coordinates
+                var diffLng = vehicle.geometry.coordinates[0] - currentCoordinates.lng;
+                var diffLat = vehicle.geometry.coordinates[1] - currentCoordinates.lat;
+        
+                // Calculate the number of steps
+                var steps = 9000 / 60; // 60 frames per second
+        
+                // Calculate the step size
+                var lngStep = diffLng / steps;
+                var latStep = diffLat / steps;
+        
+                // Start the animation
+                var i = 0;
+                function animateMarker() {
+                    if (i < steps) {
+                        // Update the marker's position
+                        markers[vehicle.properties.vehicle_id].setLngLat([
+                            currentCoordinates.lng + i * lngStep,
+                            currentCoordinates.lat + i * latStep
+                        ]);
+        
+                        // Request the next frame of the animation
+                        requestAnimationFrame(animateMarker);
+                    }
+        
+                    i++;
+                }
+        
+                animateMarker();
             } else {
                 // Otherwise, create a new marker
                 const el = document.createElement('div');
                 el.className = 'marker';
-                el.style.backgroundImage = `url(rail.svg)`;
+                el.style.backgroundImage = `url(https://lacmta.github.io/metro-iconography/icon_rail_live-vehicle.svg)`;
                 el.style.backgroundRepeat = 'no-repeat';
                 el.style.backgroundSize = 'cover';
                 el.style.backgroundPosition = 'center';
                 el.style.backgroundColor = 'white';
                 el.style.borderRadius = '50%';
                 el.style.cursor = 'pointer';
-                el.style.width = `24px`;
-                el.style.height = `24px`;
+                el.style.width = `32px`;
+                el.style.height = `32px`;
+                // Create an arrow element
+                const arrow = document.createElement('div');
+                arrow.className = 'arrow';
+                arrow.style.borderLeft = '5px solid transparent';
+                arrow.style.borderRight = '5px solid transparent';
+                arrow.style.borderBottom = '10px solid black';
+                arrow.style.position = 'absolute';
 
-                el.addEventListener('click', () => {
+                // Calculate arrow position based on heading
+                const heading = vehicle.properties.position_bearing;
+                const radius = 16; // Half the size of the marker
+                const radian = (heading - 90) * (Math.PI / 180); // Convert heading to radian and adjust it by -90 degrees
+                const arrowSize = 5; // Half the size of the arrow
+                const left = radius + (radius - arrowSize) * Math.cos(radian); // Calculate the left property
+                const bottom = radius + (radius - arrowSize) * Math.sin(radian); // Calculate the bottom property
+
+                arrow.style.left = `${left}px`;
+                arrow.style.bottom = `-${bottom}px`;
+                arrow.style.transform = `rotate(${heading}deg)`;
+                arrow.style.transformOrigin = '50% 50%'; // Set the origin of the transformation to the center of the arrow
+
+                // Append the arrow to the marker
+                el.appendChild(arrow);                el.addEventListener('click', () => {
                     new maplibregl.Popup()
                     .setHTML(`<h3>${vehicle.properties.vehicle_id}</h3>`)
                 });
@@ -172,6 +233,28 @@ window.setInterval(function () {
     });
 
 }, 9000);
+
+
+// Function to update the arrow's direction
+function updateArrow(vehicle) {
+    // Get the arrow element
+    const arrow = markers[vehicle.properties.vehicle_id].getElement().querySelector('.arrow');
+
+    // Calculate arrow position based on heading
+    const heading = vehicle.properties.position_bearing;
+    const radius = 16; // Half the size of the marker
+    const radian = (heading - 90) * (Math.PI / 180); // Convert heading to radian and adjust it by -90 degrees
+    const arrowSize = 5; // Half the size of the arrow
+    const left = radius + (radius - arrowSize) * Math.cos(radian); // Calculate the left property
+    const bottom = radius + (radius - arrowSize) * Math.sin(radian); // Calculate the bottom property
+
+    arrow.style.left = `${left}px`;
+    arrow.style.bottom = `-${bottom}px`;
+    arrow.style.transform = `rotate(${heading}deg)`;
+    arrow.style.transformOrigin = '50% 50%'; // Set the origin of the transformation to the center of the arrow
+}
+
+// Call the updateArrow function whenever the map moves
 let features = [];
     map.addSource('openmaptiles', {
       url: `https://api.maptiler.com/tiles/v3/tiles.json?key=${MAPTILER_KEY}`,
