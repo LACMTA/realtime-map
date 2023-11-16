@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
   <title>Metro - Rail Time Map</title>
-  <meta property="og:description" content="Use extrusions to display buildings' height in 3D." />
-  <meta charset='utf-8'>
+<meta property="og:description" content="Real-time rail vehicle locations for Metro." />  <meta charset='utf-8'>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://unpkg.com/mapbox-gl-esri-sources@0.0.7/dist/mapbox-gl-esri-sources.js"></script>
   <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@3.5.1/dist/maplibre-gl.css' />
@@ -151,12 +150,9 @@ map.getContainer().appendChild(updateTimeDiv);
 // Create a map of vehicle IDs to markers
 let markers = {};
 window.setInterval(function () {
-    console.log(`trying to update`)
     fetch(apiUrl)
     .then(response => response.json())
     .then(data => {
-        console.log(data)
-
         // Define features before the map function
         let features = [];
 
