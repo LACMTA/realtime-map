@@ -41,6 +41,9 @@
   const basemapEnum = "65aff2873118478482ec3dec199e9058";
 
 
+// Create a map of vehicle IDs to markers
+let markers = {};
+
 // Get the current time
 const now = new Date();
 
@@ -97,67 +100,79 @@ document.body.appendChild(updateTimeDiv);
         type: 'geojson',
         data: apiUrl,
     });
-      window.setInterval(function () {
-        
-          console.log(`trying to update`)
-          fetch(apiUrl)
-              .then(response => response.json())
-              
-              .then(data => {
-                console.log(data)
+// Create a map of vehicle IDs to markers
+let markers = {};
 
-                if (data.length > 0) {
-                  updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
+window.setInterval(function () {
+    console.log(`trying to update`)
+    fetch(apiUrl)
+    .then(response => response.json())
+    .then(data => {
+        console.log(data)
+
+        // Define features before the map function
+        let features = [];
+
+        // For each vehicle in the data
+        data.features.forEach(vehicle => {
+            // If a marker for this vehicle already exists
+            if (markers[vehicle.properties.vehicle_id]) {
+                // Update the marker's position
+                markers[vehicle.properties.vehicle_id].setLngLat(vehicle.geometry.coordinates);
+            } else {
+                // Otherwise, create a new marker
+                const el = document.createElement('div');
+                el.className = 'marker';
+                el.style.backgroundImage = `url(rail.svg)`;
+                el.style.backgroundRepeat = 'no-repeat';
+                el.style.backgroundSize = 'cover';
+                el.style.backgroundPosition = 'center';
+                el.style.backgroundColor = 'white';
+                el.style.borderRadius = '50%';
+                el.style.cursor = 'pointer';
+                el.style.width = `24px`;
+                el.style.height = `24px`;
+
+                el.addEventListener('click', () => {
+                    new maplibregl.Popup()
+                    .setHTML(`<h3>${vehicle.properties.vehicle_id}</h3>`)
+                });
+
+                // Create the marker and add it to the map
+                const marker = new maplibregl.Marker({element: el})
+                    .setLngLat(vehicle.geometry.coordinates)
+                    .addTo(map);
+
+                // Add the marker to the map of markers
+                markers[vehicle.properties.vehicle_id] = marker;
+            }
+
+            // Update features inside the map function
+            const feature = {
+                type: 'Feature',
+                geometry: {
+                    type: 'Point',
+                    coordinates: [vehicle.geometry[0], vehicle.geometry[1]]
+                },
+                properties: {
+                    Heading: vehicle.properties.bearing * 45
                 }
-                  const features = data.features.map(vehicle => {
-                      const el = document.createElement('div');
-                      el.className = 'marker';
-                      el.style.backgroundImage =
-                          `url(rail.svg)`;
-                      el.style.backgroundRepeat = 'no-repeat';
-                      el.style.backgroundSize = 'cover';
-                      el.style.backgroundPosition = 'center';
-                      el.style.backgroundColor = 'white';
-                      el.style.borderRadius = '50%';
-                      el.style.cursor = 'pointer';
-                      el.style.width = `24px`;
-                      el.style.height = `24px`;
+            };
+            features.push(feature);
+        });
 
-                      el.addEventListener('click', () => {
-                        new maplibregl.Popup()
-                        .setHTML(`<h3>${vehicle.properties.vehicle_id}</h3>`)
-                      
-                      });
+        map.getSource('vehicles').setData({
+            type: 'FeatureCollection',
+            features: features
+        });
 
+        // Update the Updated at
+        const now = new Date();
+        updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
+    });
 
-                      // add marker to map
-                      new maplibregl.Marker({element: el})
-                          .setLngLat(vehicle.geometry.coordinates)
-                          .addTo(map);
-                      const feature = {
-                          type: 'Feature',
-                          geometry: {
-                              type: 'Point',
-                              coordinates: [vehicle.geometry[0], vehicle.geometry[1]]
-                          },
-                          properties: {
-                              Heading: vehicle.properties.bearing * 45
-                          }
-                      };
-                      return feature;
-                  });
-                  map.getSource('vehicles').setData({
-                      type: 'FeatureCollection',
-                      features: features
-                  });
-
-                  // Update the Updated at                  const now = new Date();
-                  updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
-              });
-
-      }, 9000);
-
-
+}, 9000);
+let features = [];
     map.addSource('openmaptiles', {
       url: `https://api.maptiler.com/tiles/v3/tiles.json?key=${MAPTILER_KEY}`,
       type: 'vector',
