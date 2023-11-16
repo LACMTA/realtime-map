@@ -254,7 +254,7 @@ window.setInterval(function () {
                 const popup = new maplibregl.Popup()
                 .setHTML(`
                 Route: ${routeNames[vehicle.properties.route_code]}<br>
-                Data from: ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}   
+                Data from ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}   
             `);
     
             
