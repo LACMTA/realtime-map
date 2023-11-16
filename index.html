@@ -34,21 +34,7 @@
             position: relative;
             top: -5px;
         }   
-        .current-time {
-          position: fixed;
-          top: 10px;
-          right: 10px;
-          background-color: #fff;
-          border: none;
-          border-radius: 3px;
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-          cursor: pointer;
-          margin: 5px;
-          padding: 5px;
-          width: auto;
-          height: auto;
-          outline: none;
-        }
+
     .maplibregl-ctrl-icon.home-icon {
         background-color: #fff;
         border: none;
@@ -77,6 +63,17 @@
         font-size: 18px;
         font-weight: bold;
         color: #404040;
+        background-color: #f8f8f8; /* Light gray background */
+        padding: 10px; /* Padding around the text */
+        border-radius: 5px; /* Rounded corners */
+    }
+
+    .update-time {
+        position: absolute;
+        top: 60px; /* Adjust this value as needed */
+        right: 10px;
+        font-size: 14px;
+        color: #404040;
     }
     </style>
 </head>
@@ -95,19 +92,6 @@ let markers = {};
 // Get the current time
 const now = new Date();
 
-// Create a div element
-const updateTimeDiv = document.createElement('div');
-// Create a div for the map title
-const titleDiv = document.createElement('div');
-titleDiv.textContent = 'Metro Real Time Rail Locations';
-titleDiv.classList.add('map-title');
-
-// Set the div's text content to the current time
-updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
-updateTimeDiv.classList.add('current-time');
-// Add the div to the document body
-document.body.appendChild(updateTimeDiv);
-
 // map setup
 
   let map = new maplibregl.Map({
@@ -121,14 +105,20 @@ document.body.appendChild(updateTimeDiv);
     minZoom: 8, // Minimum zoom level
     style: `https://basemapstyles-api.arcgis.com/arcgis/rest/services/styles/v2/styles/items/${basemapEnum}?token=${ESRI_KEY}`,
   });
-  
-  
-  
-// Add the title div to the map container
-map.getContainer().appendChild(titleDiv);
+// Create a div for the map title
+const titleDiv = document.createElement('div');
+titleDiv.classList.add('map-title');
+titleDiv.textContent = 'Metro Real Time Rail Locations';
 
-// Add the update time div to the map container
+// Create a div for the update time
+const updateTimeDiv = document.createElement('div');
+updateTimeDiv.classList.add('update-time');
+updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
+
+// Add the title div and update time div to the map container
+map.getContainer().appendChild(titleDiv);
 map.getContainer().appendChild(updateTimeDiv);
+
 
   // The 'building' layer in the streets vector source contains building-height
   // data from OpenStreetMap.
@@ -390,21 +380,6 @@ class HomeControl {
 <script>
     // Add the home control to the map
 map.addControl(new HomeControl(), 'top-left');
-// Add the home button to the map container
-map.getContainer().appendChild(homeButton);
-
-// Add the home button to the map container
-map.getContainer().appendChild(homeButton);
-
-// Add an event listener to the home button
-homeButton.addEventListener('click', () => {
-    map.flyTo({
-        center: [-118.25133692966446, 34.05295151499077],
-        zoom: 9,
-        pitch: 20,
-        bearing: 0
-    });
-});
 
 </script>
 </html>
