@@ -4,15 +4,32 @@
   <title>Metro - Rail Time Map</title>
 <meta property="og:description" content="Real-time rail vehicle locations for Metro." />  <meta charset='utf-8'>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.css' />
+  <script src='https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.js'></script>
+
   <script src="https://unpkg.com/mapbox-gl-esri-sources@0.0.7/dist/mapbox-gl-esri-sources.js"></script>
-  <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@3.5.1/dist/maplibre-gl.css' />
   <!-- Include the Font Awesome library -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans&display=swap" rel="stylesheet">
 
-  <script src='https://unpkg.com/maplibre-gl@3.5.1/dist/maplibre-gl.js'></script>
   <style>
-      body { margin: 0; padding: 0; }
+      body { margin: 0; padding: 0;     font-family: 'Open Sans', sans-serif;}
+.dot {
+    animation: dot 1s infinite;
+}
 
+@keyframes dot {
+    0%, 20% { opacity: 0; }
+    50%, 100% { opacity: 1; }
+}
+
+.dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
       html, body, #map { height: 100%; }
 
         .marker {
@@ -55,17 +72,6 @@
         color: #404040;
         font-size: 14px;
     }
-    .map-title {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        font-size: 18px;
-        font-weight: bold;
-        color: #404040;
-        background-color: #f8f8f8; /* Light gray background */
-        padding: 10px; /* Padding around the text */
-        border-radius: 5px; /* Rounded corners */
-    }
 
     .update-time {
         position: absolute;
@@ -104,20 +110,19 @@ const now = new Date();
     minZoom: 8, // Minimum zoom level
     style: `https://basemapstyles-api.arcgis.com/arcgis/rest/services/styles/v2/styles/items/${basemapEnum}?token=${ESRI_KEY}`,
   });
-// Create a div for the map title
-const titleDiv = document.createElement('div');
-titleDiv.classList.add('map-title');
-titleDiv.textContent = 'Metro Real Time Rail Locations';
 
-// Create a div for the update time
-const updateTimeDiv = document.createElement('div');
-updateTimeDiv.classList.add('update-time');
-updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
+// Create a div for the legend
+const legendDiv = document.createElement('div');
+legendDiv.id = 'legend';
+legendDiv.style.backgroundColor = '#fff';
+legendDiv.style.padding = '10px';
+legendDiv.style.position = 'absolute';
+legendDiv.style.bottom = '50px';
+legendDiv.style.right = '10px';
+legendDiv.style.zIndex = '1';
 
-// Add the title div and update time div to the map container
-map.getContainer().appendChild(titleDiv);
-map.getContainer().appendChild(updateTimeDiv);
-
+// Add the legend div to the map container
+map.getContainer().appendChild(legendDiv);
 
   // The 'building' layer in the streets vector source contains building-height
   // data from OpenStreetMap.
@@ -149,15 +154,18 @@ map.getContainer().appendChild(updateTimeDiv);
     });
 // Create a map of vehicle IDs to markers
 let markers = {};
+
 window.setInterval(function () {
     fetch(apiUrl)
     .then(response => response.json())
     .then(data => {
+        console.log(data)
         // Define features before the map function
         let features = [];
 
         // For each vehicle in the data
-        data.features.forEach(vehicle => {
+        data.features.filter(vehicle => vehicle.properties.trip_id).forEach(vehicle => {
+
 
             // If a marker for this vehicle already exists
             if (markers[vehicle.properties.vehicle_id]) {
@@ -205,21 +213,32 @@ window.setInterval(function () {
                 el.style.backgroundColor = 'white';
                 el.style.borderRadius = '50%';
                 el.style.cursor = 'pointer';
-                el.style.width = `32px`;
-                el.style.height = `32px`;
+
+                // Get the current zoom level
+                const zoom = map.getZoom();
+
+                // Calculate the size of the icon based on the zoom level
+                const size = zoom >= 15 ? 40 : 40 * 0.5; // Increased size to 40px
+
+                el.style.width = `${size}px`;
+                el.style.height = `${size}px`;
+
                 // Create an arrow element
                 const arrow = document.createElement('div');
                 arrow.className = 'arrow';
-                arrow.style.borderLeft = '5px solid transparent';
-                arrow.style.borderRight = '5px solid transparent';
-                arrow.style.borderBottom = '10px solid black';
                 arrow.style.position = 'absolute';
+
+                // Calculate arrow size based on zoom level
+                const arrowSize = zoom >= 15 ? 7 : 7 * 0.5; // Increased size to 7px
+
+                arrow.style.borderLeft = `${arrowSize}px solid transparent`;
+                arrow.style.borderRight = `${arrowSize}px solid transparent`;
+                arrow.style.borderBottom = `${arrowSize * 2}px solid black`;
 
                 // Calculate arrow position based on heading
                 const heading = vehicle.properties.position_bearing;
-                const radius = 16; // Half the size of the marker
+                const radius = size / 2; // Half the size of the marker
                 const radian = (heading - 90) * (Math.PI / 180); // Convert heading to radian and adjust it by -90 degrees
-                const arrowSize = 5; // Half the size of the arrow
                 const left = radius + (radius - arrowSize) * Math.cos(radian); // Calculate the left property
                 const bottom = radius + (radius - arrowSize) * Math.sin(radian); // Calculate the bottom property
 
@@ -227,44 +246,55 @@ window.setInterval(function () {
                 arrow.style.bottom = `-${bottom}px`;
                 arrow.style.transform = `rotate(${heading}deg)`;
                 arrow.style.transformOrigin = '50% 50%'; // Set the origin of the transformation to the center of the arrow
-
                 // Append the arrow to the marker
-                el.appendChild(arrow);                el.addEventListener('click', () => {
-                    new maplibregl.Popup()
-                    .setHTML(`<h3>${vehicle.properties.vehicle_id}</h3>`)
-                });
+                el.appendChild(arrow);
+
+                // Create the marker and add it to the map
+                // Create a new popup
+                const popup = new maplibregl.Popup()
+                .setHTML(`
+                Route: ${routeNames[vehicle.properties.route_code]}<br>
+                Data from: ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}   
+            `);
+    
+            
 
                 // Create the marker and add it to the map
                 const marker = new maplibregl.Marker({element: el})
                     .setLngLat(vehicle.geometry.coordinates)
+                    .setPopup(popup) // Set the popup
                     .addTo(map);
-
                 // Add the marker to the map of markers
                 markers[vehicle.properties.vehicle_id] = marker;
-            }
 
-            // Update features inside the map function
-            const feature = {
-                type: 'Feature',
-                geometry: {
-                    type: 'Point',
-                    coordinates: [vehicle.geometry[0], vehicle.geometry[1]]
-                },
-                properties: {
-                    Heading: vehicle.properties.bearing * 45
+                // Update features inside the map function
+                const feature = {
+                    type: 'Feature',
+                    geometry: {
+                        type: 'Point',
+                        coordinates: [vehicle.geometry[0], vehicle.geometry[1]]
+                    },
+                    properties: {
+                        Heading: vehicle.properties.bearing * 45
+                    }
+                };
+                    features.push(feature);
                 }
-            };
-            features.push(feature);
-        });
-
+            });
         map.getSource('vehicles').setData({
             type: 'FeatureCollection',
             features: features
         });
 
-        // Update the Updated at
+        // Get the current time
         const now = new Date();
+
+        // Get the update time div
+        const updateTimeDiv = document.getElementById('update-time');
+
+        // Update the content of the update time div
         updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
+        updateTimeDiv.style.fontSize = '12px';
     });
 
 }, 9000);
@@ -369,13 +399,110 @@ class HomeControl {
         this.map = undefined;
     }
 }
+map.on('load', function() {
+    // Load the GeoJSON data
+    fetch('10closure.geojson')
+        .then(response => response.json())
+        .then(data => {
+            // Add the data as a new source
+            map.addSource('freeway-closure', {
+                type: 'geojson',
+                data: data
+            });
 
+            // Create a new layer for the line
+            map.addLayer({
+                id: 'freeway-closure-layer',
+                type: 'line',
+                source: 'freeway-closure',
+                paint: {
+                    'line-color': '#ff0000', // Red color
+                    'line-width': 5,
+                    'line-dasharray': [2, 1], // Dotted line
+                    'line-opacity': 0.6 // Semi-transparent
+                }
+            });
+            // Create a new layer for the label
 
+        });
+});
+// Add a click event listener to the layer
+map.on('click', 'freeway-closure-layer', function(e) {
+    // Create a new popup
+    new maplibregl.Popup()
+        .setLngLat(e.lngLat) // Set the coordinates of the popup
+        .setHTML("10 Freeway Closure") // Set the HTML content of the popup to the 'title' property of the clicked feature
+        .addTo(map); // Add the popup to the map
+});
 </script>
+<div id="legend" style="background-color: #fff; padding: 10px; position: absolute; bottom: 50px; right: 10px; z-index: 1;">
+    <h4>Metro Real Time Rail Arrivals</h4>
+    <div><span style="background-color: #0072BC; display: inline-block; width: 20px; height: 4px;"></span> A Line (Blue)</div>
+    <div><span style="background-color: #EB131B; display: inline-block; width: 20px; height: 4px;"></span> B Line (Red)</div>
+    <div><span style="background-color: #58A738; display: inline-block; width: 20px; height: 4px;"></span> C Line (Green)</div>
+    <div><span style="background-color: #FDB913; display: inline-block; width: 20px; height: 4px;"></span> E Line (Expo)</div>
+    <div><span style="background-color: #E56DB1; display: inline-block; width: 20px; height: 4px;"></span> K Line (Crenshaw)</div>
+    <div><span style="background-color: #A05DA5; display: inline-block; width: 20px; height: 4px;"></span> D Line (Purple)</div>
+    <div style="display: flex; align-items: center;">
+        <div style="border-bottom: 2px dashed #ff0000; width: 20px; margin-right: 5px;"></div>
+        10 Freeway Closure
+    </div>  <div><img src="https://lacmta.github.io/metro-iconography/icon_rail_live-vehicle.svg" width="20" height="20"> Rail Vehicle</div>
+    <div id="update-time"><div id="loading" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 10px; background-color: rgba(0, 0, 0, 0.5); color: white; border-radius: 5px;">
+    Live data is loading
+    <span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
+</div></div>
+    
+</div>
 </body>
 <script>
     // Add the home control to the map
-map.addControl(new HomeControl(), 'top-left');
+// Assuming your vehicle layer is named 'vehicle-layer'
+// Create a mapping from route codes to route names
+const routeNames = {
+    '801': 'A Line (Blue)',
+    '802': 'B Line (Red)',
+    '803': 'C Line (Green)',
+    '804': 'E Line (Expo)',
+    '805': 'E Line (Expo)',
+    '806': 'K Line (Crenshaw)',
+    '807': 'D Line (Purple)'
 
+};
+
+    map.addControl(new HomeControl(), 'top-left');
+map.on('zoom', function() {
+    // Get the current zoom level
+    const zoom = map.getZoom();
+
+    // Calculate the size of the marker and the arrow based on the zoom level
+    const markerSize = zoom >= 15 ? 32 : 32 * 0.5;
+    const arrowSize = zoom >= 15 ? 5 : 5 * 0.5;
+
+    // Update the size of each marker
+    for (const vehicleId in markers) {
+        const marker = markers[vehicleId];
+        const el = marker.getElement();
+
+        // Update the size of the marker
+        el.style.width = `${markerSize}px`;
+        el.style.height = `${markerSize}px`;
+
+        // Update the size and position of the arrow
+        const arrow = el.querySelector('.arrow');
+        arrow.style.borderLeft = `${arrowSize}px solid transparent`;
+        arrow.style.borderRight = `${arrowSize}px solid transparent`;
+        arrow.style.borderBottom = `${arrowSize * 2}px solid black`;
+
+        // Calculate arrow position based on heading
+        const heading = vehicle.properties.position_bearing;
+        const radius = markerSize / 2; // Half the size of the marker
+        const radian = (heading - 90) * (Math.PI / 180); // Convert heading to radian and adjust it by -90 degrees
+        const left = radius + (radius - arrowSize) * Math.cos(radian); // Calculate the left property
+        const bottom = radius + (radius - arrowSize) * Math.sin(radian); // Calculate the bottom property
+
+        arrow.style.left = `${left}px`;
+        arrow.style.bottom = `-${bottom}px`;
+    }
+});
 </script>
 </html>
