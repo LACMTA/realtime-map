@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8' />
+    <title>Animated Metro API Vehicle Markers</title>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.3.1/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.3.1/mapbox-gl.css' rel='stylesheet' />
+    <script src='https://unpkg.com/maplibre-gl/dist/maplibre-gl.js'></script>
+    <link href='https://unpkg.com/maplibre-gl/dist/maplibre-gl.css' rel='stylesheet' />
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        .current-time {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: white;
+            padding: 10px;
+            border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+    <div id='map'></div>
+    <div id='update-time' class='current-time'></div>
+    <script>
+        const ESRI_KEY =  "AAPKccc2cf38fecc47649e91529acf524abflSSkRTjWwH0AYmZi8jaRo-wdpcTf6z67CLCkOjVYlw3pZyUIF_Y4KGBndq35Y02z";
+        const MAPTILER_KEY = "KydZlIiVFdYDFFfQ4QYq";
+        const basemapEnum = "65aff2873118478482ec3dec199e9058";
+
+        // Initialize Maplibre map
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: `https://api.maptiler.com/maps/${basemapEnum}/style.json?key=${MAPTILER_KEY}`,
+            center: [-77.0369, 38.9072],
+            zoom: 12
+        });
+
+        // Create a div element for the current time
+        const updateTimeDiv = document.getElementById('update-time');
+
+        // Animate vehicle markers
+        window.setInterval(() => {
+            const url = 'https://api.metro.net/LACMTA_Rail/vehicle_positions?format=geojson';
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const features = data.BusPositions.map(bus => {
+                        const feature = {
+                            type: 'Feature',
+                            geometry: {
+                                type: 'Point',
+                                coordinates: [bus.Longitude, bus.Latitude]
+                            },
+                            properties: {
+                                Heading: bus.DirectionNum * 45
+                            }
+                        };
+                        return feature;
+                    });
+                    map.getSource('vehicles').setData({
+                        type: 'FeatureCollection',
+                        features: features
+                    });
+
+                    // Update the current time
+                    const now = new Date();
+                    updateTimeDiv.textContent = `Current time: ${now.toLocaleTimeString()}`;
+                });
+        }, 5000);
+
+        // Add vehicle markers to the map
+        map.on('load', () => {
+            map.addSource('vehicles', {
+                type: 'geojson',
+                data: {
+                    type: 'FeatureCollection',
+                    features: []
+                }
+            });
+
+            map.addLayer({
+                id: 'vehicles-layer',
+                type: 'symbol',
+                source: 'vehicles',
+                layout: {
+                    'icon-image': 'bus-15',
+                    'icon-rotate': ['get', 'Heading'],
+                    'icon-rotation-alignment': 'map',
+                    'icon-allow-overlap': true,
+                    'icon-ignore-placement': true
+                }
+            });
+        });
+    </script>
+</body>
+</html>

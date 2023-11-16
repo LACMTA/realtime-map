@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Metro - Rail Time Map</title>
+  <meta property="og:description" content="Use extrusions to display buildings' height in 3D." />
+  <meta charset='utf-8'>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://unpkg.com/mapbox-gl-esri-sources@0.0.7/dist/mapbox-gl-esri-sources.js"></script>
+  <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@3.5.1/dist/maplibre-gl.css' />
+  <script src='https://unpkg.com/maplibre-gl@3.5.1/dist/maplibre-gl.js'></script>
+  <style>
+      body { margin: 0; padding: 0; }
+
+      html, body, #map { height: 100%; }
+
+        .marker {
+            display: block;
+            visibility: visible !important;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            padding: 0;
+
+        }
+        .current-time {
+          position: fixed;
+          top: 10px;
+          right: 10px;
+          background-color: white;
+          padding: 10px;
+          border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+// config options
+  const ESRI_KEY =  "AAPKccc2cf38fecc47649e91529acf524abflSSkRTjWwH0AYmZi8jaRo-wdpcTf6z67CLCkOjVYlw3pZyUIF_Y4KGBndq35Y02z";
+  const MAPTILER_KEY = "KydZlIiVFdYDFFfQ4QYq"
+  const basemapEnum = "65aff2873118478482ec3dec199e9058";
+
+
+// Get the current time
+const now = new Date();
+
+// Create a div element
+const updateTimeDiv = document.createElement('div');
+
+// Set the div's text content to the current time
+updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
+updateTimeDiv.classList.add('current-time');
+// Add the div to the document body
+document.body.appendChild(updateTimeDiv);
+
+// map setup
+
+  let map = new maplibregl.Map({
+    container: 'map',
+    center: [-118.25133692966446, 34.05295151499077], 
+    zoom: 9,
+    pitch: 20,
+    bearing: 0,
+    container: 'map',
+    antialias: true,
+    
+    style: `https://osm.org/styles/osm-bright/style.json`,
+  });
+  
+map.on('load', () => {
+    map.addSource('esri-vector-source', {
+        'type': 'vector',
+        'tiles': [`https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Hybrid_Vector_tile_Map/VectorTileServer/tile/{z}/{y}/{x}.pbf?token=${ESRI_KEY}`]
+    });
+
+    map.addLayer({
+        'id': 'esri-vector-line-layer',
+        'type': 'line',
+        'source': 'esri-vector-source',
+        'source-layer': 'Hybrid_Vector_tile_Map',
+        'layout': {},
+        'paint': {}
+    });
+
+    map.addLayer({
+        'id': 'esri-vector-fill-layer',
+        'type': 'fill',
+        'source': 'esri-vector-source',
+        'source-layer': 'Hybrid_Vector_tile_Map',
+        'layout': {},
+        'paint': {}
+    });
+});
+  
+fetch('styles.json')
+    .then(response => response.json())
+    .then(style => {
+        // Set the correct sprite URL
+        style.sprite = 'https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Hybrid_Vector_tile_Map/VectorTileServer/resources/sprites/sprite';
+
+        // Convert relative URLs to absolute URLs for glyphs
+        const baseUrl = 'https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Hybrid_Vector_tile_Map/VectorTileServer/resources/styles';
+        if (style.glyphs.startsWith('../')) {
+            style.glyphs = baseUrl + style.glyphs.substring(2);
+        }
+
+        // Check each layer in the style object
+        for (let layer of style.layers) {
+            // If the layer is not a fill layer, remove the fill-color property
+            if (layer.type !== 'fill' && layer.paint && layer.paint['fill-color']) {
+                delete layer.paint['fill-color'];
+            }
+        }
+
+        // Set the style of the map
+        console.log("setting style")
+        map.setStyle(style);
+    });
+
+  // The 'building' layer in the streets vector source contains building-height
+  // data from OpenStreetMap.
+  map.on('load', () => {
+      // Insert the layer beneath any symbol layer.
+      const layers = map.getStyle().layers;
+
+      let labelLayerId;
+      for (let i = 0; i < layers.length; i++) {
+          if (layers[i].type === 'symbol' && layers[i].layout['text-field']) {
+              labelLayerId = layers[i].id;
+              break;
+          }
+      }
+
+
+  let apiUrl = 'https://api.metro.net/LACMTA_Rail/vehicle_positions?format=geojson'
+
+      map.addSource('vehicles', {
+        type: 'geojson',
+        data: apiUrl,
+    });
+      window.setInterval(function () {
+        
+          console.log(`trying to update`)
+          fetch(apiUrl)
+              .then(response => response.json())
+              
+              .then(data => {
+                console.log(data)
+
+                if (data.length > 0) {
+                  updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
+                }
+                  const features = data.features.map(vehicle => {
+                      const el = document.createElement('div');
+                      el.className = 'marker';
+                      el.style.backgroundImage =
+                          `url(rail.svg)`;
+                      el.style.backgroundRepeat = 'no-repeat';
+                      el.style.backgroundSize = 'cover';
+                      el.style.backgroundPosition = 'center';
+                      el.style.backgroundColor = 'white';
+                      el.style.borderRadius = '50%';
+                      el.style.cursor = 'pointer';
+                      el.style.width = `24px`;
+                      el.style.height = `24px`;
+
+                      el.addEventListener('click', () => {
+                        new maplibregl.Popup()
+                        .setHTML(`<h3>${vehicle.properties.vehicle_id}</h3>`)
+                      
+                      });
+
+
+                      // add marker to map
+                      new maplibregl.Marker({element: el})
+                          .setLngLat(vehicle.geometry.coordinates)
+                          .addTo(map);
+                      const feature = {
+                          type: 'Feature',
+                          geometry: {
+                              type: 'Point',
+                              coordinates: [vehicle.geometry[0], vehicle.geometry[1]]
+                          },
+                          properties: {
+                              Heading: vehicle.properties.bearing * 45
+                          }
+                      };
+                      return feature;
+                  });
+                  map.getSource('vehicles').setData({
+                      type: 'FeatureCollection',
+                      features: features
+                  });
+
+                  // Update the Updated at                  const now = new Date();
+                  updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
+              });
+
+      }, 9000);
+
+
+    map.addSource('openmaptiles', {
+      url: `https://api.maptiler.com/tiles/v3/tiles.json?key=${MAPTILER_KEY}`,
+      type: 'vector',
+  });
+
+
+      map.addLayer({
+        'id': 'vehicles',
+        'type': 'symbol',
+        'source': 'vehicles',
+        'layout': {
+            'icon-image': 'rail',
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true
+        }
+    });
+      map.addLayer(
+          {
+              'id': '3d-buildings',
+              'source': 'openmaptiles',
+              'source-layer': 'building',
+              'type': 'fill-extrusion',
+              'minzoom': 14,
+              'paint': {
+                  'fill-extrusion-color': [
+                      'interpolate',
+                      ['linear'],
+                      ['get', 'render_height'],0, 'lightgray', 200, 'hsl(38, 28%, 77%)', 400, 'hsl(38, 28%, 77%)'
+                  ],
+                  'fill-extrusion-opacity': 0.5,
+                  'fill-extrusion-height': [
+                      'interpolate',
+                      ['linear'],
+                      ['zoom'],
+                      15,
+                      0,
+                      16,
+                      ['get', 'render_height']
+                  ],
+                  'fill-extrusion-base': ['case',
+                      ['>=', ['get', 'zoom'], 16],
+                      ['get', 'render_min_height'], 0
+                  ]
+              }
+          },
+          labelLayerId
+      );
+
+    });
+
+  
+</script>
+</body>
+</html>
