@@ -17,11 +17,45 @@
 .dot {
     animation: dot 1s infinite;
 }
+@keyframes slideAway {
+    0% {transform: translateX(0);}
+    60% {transform: translateX(20%);}
+    100% {transform: translateX(100%);}
+}
 
+#legend {
+    transform: translateX(0);
+    cursor: pointer;
+    padding: 0;
+}
+
+#legend.hidden {
+    animation: slideAway .5s forwards;
+    padding-left: 30px;
+}
 @keyframes dot {
     0%, 20% { opacity: 0; }
     50%, 100% { opacity: 1; }
 }
+#toggle-legend {
+    position: absolute;
+    left: -30px; /* Adjust as needed */
+    top: 0;
+    bottom: 0;
+    width: 30px; /* Adjust as needed */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    background-color: #fff; /* Adjust as needed */
+    border: none;
+    cursor: pointer;
+}
+
+#toggle-legend i {
+    font-size: 12px; /* Adjust as needed */
+}
+
 
 .dot:nth-child(2) {
     animation-delay: 0.2s;
@@ -49,8 +83,7 @@
         border-radius: 3px;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         cursor: pointer;
-        margin: 5px;
-        padding: 5px;
+        padding: 6px;
         width: auto;
         height: auto;
         outline: none;
@@ -103,18 +136,7 @@ const now = new Date();
     style: `https://basemapstyles-api.arcgis.com/arcgis/rest/services/styles/v2/styles/items/${basemapEnum}?token=${ESRI_KEY}`,
   });
 
-// Create a div for the legend
-const legendDiv = document.createElement('div');
-legendDiv.id = 'legend';
-legendDiv.style.backgroundColor = '#fff';
-legendDiv.style.padding = '10px';
-legendDiv.style.position = 'absolute';
-legendDiv.style.bottom = '50px';
-legendDiv.style.right = '10px';
-legendDiv.style.zIndex = '1';
 
-// Add the legend div to the map container
-map.getContainer().appendChild(legendDiv);
 
   // The 'building' layer in the streets vector source contains building-height
   // data from OpenStreetMap.
@@ -398,13 +420,22 @@ map.on('click', 'freeway-closure-layer', function(e) {
         .addTo(map); // Add the popup to the map
 });
 
-document.getElementById('legend').addEventListener('click', function() {
-    console.log('legend clicked');
-    this.classList.toggle('hidden');
+window.onload = function() {
+    const legend = document.getElementById('legend');
+    const toggleLegend = document.getElementById('toggle-legend');
 
-    // Change the icon based on the visibility
-    document.getElementById('toggle-legend').innerHTML = this.classList.contains('hidden') ? '<i class="fas fa-chevron-right"></i>' : '<i class="fas fa-chevron-left"></i>';
-});
+    if (legend && toggleLegend) {
+        legend.addEventListener('click', function() {
+            this.classList.toggle('hidden');
+
+            // Change the icon based on the visibility
+            toggleLegend.innerHTML = this.classList.contains('hidden') ? '<i class="fas fa-chevron-right"></i>' : '<i class="fas fa-chevron-left"></i>';
+        });
+    } else {
+        console.error('Element not found');
+    }
+};
+
 </script>
 <div id="legend" style="background-color: #fff; padding: 10px; position: absolute; bottom: 50px; right: 10px; z-index: 1; transition: right 0.5s;">
     <h4>Metro Real Time Rail Arrivals</h4>
@@ -420,7 +451,7 @@ document.getElementById('legend').addEventListener('click', function() {
     </div>  
     <div><img src="https://lacmta.github.io/metro-iconography/Arrow.svg" width="20" height="20"> Rail Vehicle</div>
     <div id="update-time"></div>
-    <button id="toggle-legend" style="position: absolute; top: 10px; right: 10px;"><i class="fas fa-chevron-left"></i></button>
+    <button id="toggle-legend"><i class="fas fa-chevron-left"></i></button>
 </div>
 
 <div id="loading" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 10px; background-color: rgba(0, 0, 0, 0.5); color: white; border-radius: 5px;">
@@ -462,7 +493,14 @@ map.on('zoom', function() {
         el.style.height = `${markerSize}px`;
     }
 });
+map.on('rotate', function() {
+    updateMarkerRotations();
+});
+
 function updateMarkerRotations() {
+    // Get the map's current bearing
+    const mapBearing = map.getBearing();
+
     // Iterate over each marker
     for (const vehicleId in markers) {
         const marker = markers[vehicleId];
@@ -471,11 +509,11 @@ function updateMarkerRotations() {
         // Get the bearing from the marker object
         const bearing = marker.bearing;
 
-        // Only update the rotation if the bearing is between 45 and 135 or between 225 and 315
-        if ((bearing > 45 && bearing < 135) || (bearing > 225 && bearing < 315)) {
-            // Apply the necessary transformations for correct placement and rotation
-            el.style.transform = `translate(-50%, -50%) rotateZ(${bearing}deg)`;
-        }
+        // Calculate the adjusted bearing based on the map's bearing
+        const adjustedBearing = bearing - mapBearing;
+
+        // Apply the necessary transformations for correct placement and rotation
+        el.style.transform = `translate(-50%, -50%) rotateZ(${adjustedBearing}deg)`;
     }
 }
 </script>
