@@ -118,6 +118,9 @@
   const ESRI_KEY =  "AAPKccc2cf38fecc47649e91529acf524abflSSkRTjWwH0AYmZi8jaRo-wdpcTf6z67CLCkOjVYlw3pZyUIF_Y4KGBndq35Y02z";
   const MAPTILER_KEY = "KydZlIiVFdYDFFfQ4QYq"
   const basemapEnum = "65aff2873118478482ec3dec199e9058";
+  let timer = setTimeout(() => {
+    document.getElementById('loading').innerHTML = "Error loading data or no vehicles currently running. Please check your connection or try again later.";
+}, 15000); // 15 seconds
 
 
 // Create a map of vehicle IDs to markers
@@ -186,11 +189,10 @@ window.setInterval(function () {
     fetch(apiUrl)
     .then(response => response.json())
     .then(data => {
-        // console.log(data)
-        // Define features before the map function
+        // If data is returned, clear the timer
+        clearTimeout(timer);
         let features = [];
 
-        // For each vehicle in the data
         // For each vehicle in the data
         data.features.filter(vehicle => vehicle.properties.trip_id).forEach(vehicle => {
             // If a marker for this vehicle already exists
@@ -347,7 +349,17 @@ window.setInterval(function () {
         // Update the content of the update time div
         updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
         updateTimeDiv.style.fontSize = '12px';
+        if (!data.features.some(vehicle => vehicle.properties.trip_id)) {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loading').innerHTML = "No vehicles currently running, please back later.";
+        }
+    })
+    .catch(error => {
+        console.error(error);
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('loading').innerHTML = "Error loading data. Please check your connection or try again later.";
     });
+
 }, 9000);
 
 
