@@ -106,6 +106,9 @@
         font-size: 14px;
         color: #404040;
     }
+    .issues{
+        font-size: 12px;
+    }
     </style>
 </head>
 <body>
@@ -482,7 +485,11 @@ window.onload = function() {
 
 </script>
 <div id="legend" style="background-color: #fff; padding: 10px; position: absolute; bottom: 50px; right: 10px; z-index: 1; transition: right 0.5s;">
-    <h4>Metro Real Time Rail Arrivals</h4>
+    <h4>Metro Live Rail Vehicle Locations</h4>
+    <div style="display: flex; align-items: center;">
+        <img src="https://lacmta.github.io/metro-iconography/Arrow.svg" width="20" height="20" style="transform: rotate(-90deg); margin-right: 10px; margin-left: 10px;">
+        Rail Vehicle
+    </div>
     <div style="display: flex; align-items: center;">
         <span style="background-color: #0072BC; display: inline-block; width: 10px; height: 4px;"></span>
         <img src="https://lacmta.github.io/metro-iconography/Service_ALine.svg" alt="A" width="20" height="20">
@@ -517,12 +524,13 @@ window.onload = function() {
         <div style="border-bottom: 2px dashed #ff0000; width: 20px; margin-right: 5px;"></div>
         <span onclick="map.flyTo({center: [-118.24425384491579,34.02392777679307], zoom: 14})"> 10 Freeway Closure </span><i class="fas fa-exclamation-triangle" style="cursor: pointer; color: orange;" onclick="map.flyTo({center: [-118.24425384491579,34.02392777679307], zoom: 13});"></i>
     </div>
-    <div>
-        <img src="https://lacmta.github.io/metro-iconography/Arrow.svg" width="20" height="20" style="transform: rotate(-90deg);">
-        Rail Vehicle
-    </div>    <div id="update-time"></div>
-    <div style="display: flex; align-items: center;">
-    </div>
+<div id="update-time"></div>
+<div style="display: flex; justify-content: flex-end; align-items: center;">
+    <a class="issues" href="https://github.com/LACMTA/realtime-map/issues" target="_blank" style="display: flex; align-items: center; text-decoration: none; color: inherit;">
+        <i class="fab fa-github" style="margin-right: 5px;"></i>
+        Spot an issue?
+    </a>
+</div>
     <button id="toggle-legend"><i class="fas fa-chevron-left"></i></button>
 </div>
 
