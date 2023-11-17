@@ -22,19 +22,19 @@ At this point, you're ready to make your changes! Feel free to ask for help; eve
 
 ## Make a Pull Request
 
-At this point, you should switch back to your main branch and make sure it's up to date with the latest Realtime Map main branch:
+At this point, you should switch back to your `dev` branch and make sure it's up to date with the latest Realtime Map `dev` branch:
 
 ```bash
 git remote add upstream git@github.com:LACMTA/realtime-map.git
-git checkout main
-git pull upstream main
+git checkout dev
+git pull upstream dev
 ```
 
-Then update your feature branch from your local copy of main, and push it!
+Then update your feature branch from your local copy of dev, and push it!
 
 ```bash
 git checkout 325-add-japanese-translations
-git rebase main
+git rebase dev
 git push --set-upstream origin 325-add-japanese-translations
 ```
 
@@ -48,7 +48,7 @@ To learn more about rebasing in Git, there are a lot of [good resources](https:/
 
 ```bash
 git checkout 325-add-japanese-translations
-git pull --rebase upstream main
+git pull --rebase upstream dev
 git push --force-with-lease 325-add-japanese-translations
 ```
 
@@ -58,6 +58,6 @@ A PR can only be merged into main by a maintainer if:
 
 - It has been approved by at least a maintainer. If it was a maintainer who opened the PR, no  approval is needed.
 - It has no requested changes.
-- It is up to date with current main.
+- It is up to date with current `dev`.
 
 Any maintainer is allowed to merge a PR if all of these conditions are met.
