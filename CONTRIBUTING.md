@@ -38,7 +38,7 @@ git rebase dev
 git push --set-upstream origin 325-add-japanese-translations
 ```
 
-Finally, go to GitHub and make a Pull Request.
+Finally, go to GitHub and make a Pull Request into the `dev` branch.
 
 ## Keeping your Pull Request updated
 
