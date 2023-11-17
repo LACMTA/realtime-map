@@ -34,22 +34,14 @@
 
         .marker {
             display: block;
-            visibility: visible !important;
+            visibility: visible;
             border: none;
             border-radius: 50%;
             cursor: pointer;
             padding: 0;
 
         }
-        .arrow {
-            width: 0;
-            height: 0;
-            border-left: 5px solid transparent;
-            border-right: 5px solid transparent;
-            border-bottom: 10px solid black;
-            position: relative;
-            top: -5px;
-        }   
+
 
     .maplibregl-ctrl-icon.home-icon {
         background-color: #fff;
@@ -152,8 +144,6 @@ map.getContainer().appendChild(legendDiv);
         type: 'geojson',
         data: apiUrl,
     });
-// Create a map of vehicle IDs to markers
-let markers = {};
 
 window.setInterval(function () {
     fetch(apiUrl)
@@ -169,23 +159,22 @@ window.setInterval(function () {
 
             // If a marker for this vehicle already exists
             if (markers[vehicle.properties.vehicle_id]) {
-                updateArrow(vehicle)
                 // Get the current coordinates of the marker
-                var currentCoordinates = markers[vehicle.properties.vehicle_id].getLngLat();
+                let currentCoordinates = markers[vehicle.properties.vehicle_id].getLngLat();
                 
                 // Calculate the difference in coordinates
-                var diffLng = vehicle.geometry.coordinates[0] - currentCoordinates.lng;
-                var diffLat = vehicle.geometry.coordinates[1] - currentCoordinates.lat;
+                let diffLng = vehicle.geometry.coordinates[0] - currentCoordinates.lng;
+                let diffLat = vehicle.geometry.coordinates[1] - currentCoordinates.lat;
         
                 // Calculate the number of steps
-                var steps = 9000 / 60; // 60 frames per second
+                let steps = 9000 / 60; // 60 frames per second
         
                 // Calculate the step size
-                var lngStep = diffLng / steps;
-                var latStep = diffLat / steps;
+                let lngStep = diffLng / steps;
+                let latStep = diffLat / steps;
         
                 // Start the animation
-                var i = 0;
+                let i = 0;
                 function animateMarker() {
                     if (i < steps) {
                         // Update the marker's position
@@ -193,9 +182,11 @@ window.setInterval(function () {
                             currentCoordinates.lng + i * lngStep,
                             currentCoordinates.lat + i * latStep
                         ]);
-        
-                        // Request the next frame of the animation
+                            // Update the rotations of the markers
+                        
+                            // Request the next frame of the animation
                         requestAnimationFrame(animateMarker);
+                        updateMarkerRotations();
                     }
         
                     i++;
@@ -204,9 +195,22 @@ window.setInterval(function () {
                 animateMarker();
             } else {
                 // Otherwise, create a new marker
+                const wrapper = document.createElement('div');
+                wrapper.className = 'wrapper';
                 const el = document.createElement('div');
                 el.className = 'marker';
-                el.style.backgroundImage = `url(https://lacmta.github.io/metro-iconography/icon_rail_live-vehicle.svg)`;
+
+                // Set the icon URL
+                const iconUrl = 'https://raw.githubusercontent.com/LACMTA/metro-iconography/main/Arrow.svg';
+                el.style.background = `url(${iconUrl}) no-repeat center/cover`;
+
+                // Rotate the icon based on the heading
+                const heading = vehicle.properties.position_bearing;
+                wrapper.style.transform = `rotateZ(${heading}deg)`;
+
+                // Force a re-render of the map
+                map.triggerRepaint();
+
                 el.style.backgroundRepeat = 'no-repeat';
                 el.style.backgroundSize = 'cover';
                 el.style.backgroundPosition = 'center';
@@ -223,50 +227,28 @@ window.setInterval(function () {
                 el.style.width = `${size}px`;
                 el.style.height = `${size}px`;
 
-                // Create an arrow element
-                const arrow = document.createElement('div');
-                arrow.className = 'arrow';
-                arrow.style.position = 'absolute';
+                // Add the marker element to the wrapper
+                wrapper.appendChild(el);
 
-                // Calculate arrow size based on zoom level
-                const arrowSize = zoom >= 15 ? 7 : 7 * 0.5; // Increased size to 7px
-
-                arrow.style.borderLeft = `${arrowSize}px solid transparent`;
-                arrow.style.borderRight = `${arrowSize}px solid transparent`;
-                arrow.style.borderBottom = `${arrowSize * 2}px solid black`;
-
-                // Calculate arrow position based on heading
-                const heading = vehicle.properties.position_bearing;
-                const radius = size / 2; // Half the size of the marker
-                const radian = (heading - 90) * (Math.PI / 180); // Convert heading to radian and adjust it by -90 degrees
-                const left = radius + (radius - arrowSize) * Math.cos(radian); // Calculate the left property
-                const bottom = radius + (radius - arrowSize) * Math.sin(radian); // Calculate the bottom property
-
-                arrow.style.left = `${left}px`;
-                arrow.style.bottom = `-${bottom}px`;
-                arrow.style.transform = `rotate(${heading}deg)`;
-                arrow.style.transformOrigin = '50% 50%'; // Set the origin of the transformation to the center of the arrow
-                // Append the arrow to the marker
-                el.appendChild(arrow);
-
-                // Create the marker and add it to the map
                 // Create a new popup
                 const popup = new maplibregl.Popup()
                 .setHTML(`
                 Route: ${routeNames[vehicle.properties.route_code]}<br>
                 Data from ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}   
-            `);
-    
-            
+                `);
 
                 // Create the marker and add it to the map
-                const marker = new maplibregl.Marker({element: el})
+                const marker = new maplibregl.Marker({element: wrapper})
                     .setLngLat(vehicle.geometry.coordinates)
                     .setPopup(popup) // Set the popup
                     .addTo(map);
+
+                // Store the bearing in the marker object
+                marker.bearing = vehicle.properties.position_bearing;
+
                 // Add the marker to the map of markers
                 markers[vehicle.properties.vehicle_id] = marker;
-
+                updateMarkerRotations();
                 // Update features inside the map function
                 const feature = {
                     type: 'Feature',
@@ -278,14 +260,15 @@ window.setInterval(function () {
                         Heading: vehicle.properties.bearing * 45
                     }
                 };
-                    features.push(feature);
+                features.push(feature);
                 }
-            });
+                });
         map.getSource('vehicles').setData({
             type: 'FeatureCollection',
             features: features
         });
-
+        // Hide the loading div after the markers are loaded
+        document.getElementById('loading').style.display = 'none';
         // Get the current time
         const now = new Date();
 
@@ -296,28 +279,8 @@ window.setInterval(function () {
         updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
         updateTimeDiv.style.fontSize = '12px';
     });
-
 }, 9000);
 
-
-// Function to update the arrow's direction
-function updateArrow(vehicle) {
-    // Get the arrow element
-    const arrow = markers[vehicle.properties.vehicle_id].getElement().querySelector('.arrow');
-
-    // Calculate arrow position based on heading
-    const heading = vehicle.properties.position_bearing;
-    const radius = 16; // Half the size of the marker
-    const radian = (heading - 90) * (Math.PI / 180); // Convert heading to radian and adjust it by -90 degrees
-    const arrowSize = 5; // Half the size of the arrow
-    const left = radius + (radius - arrowSize) * Math.cos(radian); // Calculate the left property
-    const bottom = radius + (radius - arrowSize) * Math.sin(radian); // Calculate the bottom property
-
-    arrow.style.left = `${left}px`;
-    arrow.style.bottom = `-${bottom}px`;
-    arrow.style.transform = `rotate(${heading}deg)`;
-    arrow.style.transformOrigin = '50% 50%'; // Set the origin of the transformation to the center of the arrow
-}
 
 // Call the updateArrow function whenever the map moves
 let features = [];
@@ -434,24 +397,35 @@ map.on('click', 'freeway-closure-layer', function(e) {
         .setHTML("10 Freeway Closure") // Set the HTML content of the popup to the 'title' property of the clicked feature
         .addTo(map); // Add the popup to the map
 });
+
+document.getElementById('legend').addEventListener('click', function() {
+    console.log('legend clicked');
+    this.classList.toggle('hidden');
+
+    // Change the icon based on the visibility
+    document.getElementById('toggle-legend').innerHTML = this.classList.contains('hidden') ? '<i class="fas fa-chevron-right"></i>' : '<i class="fas fa-chevron-left"></i>';
+});
 </script>
-<div id="legend" style="background-color: #fff; padding: 10px; position: absolute; bottom: 50px; right: 10px; z-index: 1;">
+<div id="legend" style="background-color: #fff; padding: 10px; position: absolute; bottom: 50px; right: 10px; z-index: 1; transition: right 0.5s;">
     <h4>Metro Real Time Rail Arrivals</h4>
     <div><span style="background-color: #0072BC; display: inline-block; width: 20px; height: 4px;"></span> A Line (Blue)</div>
     <div><span style="background-color: #EB131B; display: inline-block; width: 20px; height: 4px;"></span> B Line (Red)</div>
     <div><span style="background-color: #58A738; display: inline-block; width: 20px; height: 4px;"></span> C Line (Green)</div>
+    <div><span style="background-color: #A05DA5; display: inline-block; width: 20px; height: 4px;"></span> D Line (Purple)</div>
     <div><span style="background-color: #FDB913; display: inline-block; width: 20px; height: 4px;"></span> E Line (Expo)</div>
     <div><span style="background-color: #E56DB1; display: inline-block; width: 20px; height: 4px;"></span> K Line (Crenshaw)</div>
-    <div><span style="background-color: #A05DA5; display: inline-block; width: 20px; height: 4px;"></span> D Line (Purple)</div>
     <div style="display: flex; align-items: center;">
         <div style="border-bottom: 2px dashed #ff0000; width: 20px; margin-right: 5px;"></div>
         10 Freeway Closure
-    </div>  <div><img src="https://lacmta.github.io/metro-iconography/icon_rail_live-vehicle.svg" width="20" height="20"> Rail Vehicle</div>
-    <div id="update-time"><div id="loading" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 10px; background-color: rgba(0, 0, 0, 0.5); color: white; border-radius: 5px;">
+    </div>  
+    <div><img src="https://lacmta.github.io/metro-iconography/Arrow.svg" width="20" height="20"> Rail Vehicle</div>
+    <div id="update-time"></div>
+    <button id="toggle-legend" style="position: absolute; top: 10px; right: 10px;"><i class="fas fa-chevron-left"></i></button>
+</div>
+
+<div id="loading" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 10px; background-color: rgba(0, 0, 0, 0.5); color: white; border-radius: 5px;">
     Live data is loading
     <span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
-</div></div>
-    
 </div>
 </body>
 <script>
@@ -459,13 +433,13 @@ map.on('click', 'freeway-closure-layer', function(e) {
 // Assuming your vehicle layer is named 'vehicle-layer'
 // Create a mapping from route codes to route names
 const routeNames = {
-    '801': 'A Line (Blue)',
-    '802': 'B Line (Red)',
-    '803': 'C Line (Green)',
-    '804': 'E Line (Expo)',
-    '805': 'E Line (Expo)',
-    '806': 'K Line (Crenshaw)',
-    '807': 'D Line (Purple)'
+    '801': 'A Line',
+    '802': 'B Line',
+    '803': 'C Line',
+    '804': 'L Line',
+    '806': 'E Line',
+    '807': 'K Line',
+    '805': 'D Line'
 
 };
 
@@ -486,23 +460,23 @@ map.on('zoom', function() {
         // Update the size of the marker
         el.style.width = `${markerSize}px`;
         el.style.height = `${markerSize}px`;
-
-        // Update the size and position of the arrow
-        const arrow = el.querySelector('.arrow');
-        arrow.style.borderLeft = `${arrowSize}px solid transparent`;
-        arrow.style.borderRight = `${arrowSize}px solid transparent`;
-        arrow.style.borderBottom = `${arrowSize * 2}px solid black`;
-
-        // Calculate arrow position based on heading
-        const heading = vehicle.properties.position_bearing;
-        const radius = markerSize / 2; // Half the size of the marker
-        const radian = (heading - 90) * (Math.PI / 180); // Convert heading to radian and adjust it by -90 degrees
-        const left = radius + (radius - arrowSize) * Math.cos(radian); // Calculate the left property
-        const bottom = radius + (radius - arrowSize) * Math.sin(radian); // Calculate the bottom property
-
-        arrow.style.left = `${left}px`;
-        arrow.style.bottom = `-${bottom}px`;
     }
 });
+function updateMarkerRotations() {
+    // Iterate over each marker
+    for (const vehicleId in markers) {
+        const marker = markers[vehicleId];
+        const el = marker.getElement().querySelector('.marker'); // This is the marker element
+
+        // Get the bearing from the marker object
+        const bearing = marker.bearing;
+
+        // Only update the rotation if the bearing is between 45 and 135 or between 225 and 315
+        if ((bearing > 45 && bearing < 135) || (bearing > 225 && bearing < 315)) {
+            // Apply the necessary transformations for correct placement and rotation
+            el.style.transform = `translate(-50%, -50%) rotateZ(${bearing}deg)`;
+        }
+    }
+}
 </script>
 </html>
