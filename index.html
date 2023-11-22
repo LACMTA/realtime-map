@@ -712,7 +712,7 @@ var geolocate = new maplibregl.GeolocateControl({
     trackUserLocation: true
 });
 
-map.addControl(geolocate);
+map.addControl(geolocate, 'top-left');
 
 // Set the map's center to the user's location once it's available
 geolocate.on('geolocate', function(e) {
