@@ -13,7 +13,20 @@
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans&display=swap" rel="stylesheet">
 
   <style>
-      body { margin: 0; padding: 0;     font-family: 'Open Sans', sans-serif;}
+    .pulsatingIcon {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: red;
+        animation: pulsate 2s infinite;
+    }
+
+    @keyframes pulsate {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.5); opacity: 0.5; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+      body { margin: 0; padding: 0;     font-family: 'Open Sans', sans-serif;    overflow-x: hidden; /* Prevents horizontal overflow */}
 .dot {
     animation: dot 1s infinite;
 }
@@ -27,6 +40,13 @@
     transform: translateX(0);
     cursor: pointer;
     padding: 0;
+}
+
+@media (max-width: 600px) {
+    #legend {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 #legend.hidden {
@@ -63,6 +83,11 @@
 
 .dot:nth-child(3) {
     animation-delay: 0.4s;
+}
+
+.beta {
+    color: #FF4500; /* Orange text color */
+    font-size: 0.8em; /* Smaller font size */
 }
       html, body, #map { height: 100%; }
 
@@ -101,17 +126,27 @@
 
     .update-time {
         position: absolute;
-        top: 60px; /* Adjust this value as needed */
-        right: 10px;
+        top: 0;
+        right: 0;
         font-size: 14px;
         color: #404040;
+        background-color: rgba(255, 255, 255, 0.2); /* white background with 0.2 opacity */
+        padding: 10px; /* Add some padding so the text isn't right up against the edge */
     }
     .issues{
         font-size: 12px;
     }
+    #brt{
+        font-size: 16px;
+        margin-left: 20px;
+    }
     </style>
 </head>
 <body>
+    <div id="loading" style="cursor:default;position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 10px; background-color: rgba(0, 0, 0, 0.5); color: white; border-radius: 5px; z-index: 9999;">
+    Loading live data 
+    <span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
+</div>
 <div id="map"></div>
 <script>
 // config options
@@ -150,7 +185,9 @@ const now = new Date();
     '804': 'https://lacmta.github.io/metro-iconography/Service_ELine2.svg',
     '806': 'https://lacmta.github.io/metro-iconography/Service_LLine.svg',
     '807': 'https://lacmta.github.io/metro-iconography/Service_KLine.svg',
-    '805': 'https://lacmta.github.io/metro-iconography/Service_DLine.svg'
+    '805': 'https://lacmta.github.io/metro-iconography/Service_DLine.svg',
+    '901': 'https://lacmta.github.io/metro-iconography/Service_GLine.svg',
+    '910': 'https://lacmta.github.io/metro-iconography/Service_JLine.svg'
 
 };
 
@@ -185,155 +222,165 @@ const now = new Date();
 // Declare and initialize the popups object
 let popups = {};
 
-window.setInterval(function () {
-    fetch(apiUrl)
-    .then(response => response.json())
-    .then(data => {
-        // If data is returned, clear the timer
-        clearTimeout(timer);
-        let features = [];
 
-        // For each vehicle in the data
-        data.features.filter(vehicle => vehicle.properties.trip_id).forEach(vehicle => {
-            // If a marker for this vehicle already exists
-            if (markers[vehicle.properties.vehicle_id]) {
-                // Get the current coordinates of the marker
-                let currentCoordinates = markers[vehicle.properties.vehicle_id].getLngLat();
-                
-                // Calculate the difference in coordinates
-                let diffLng = vehicle.geometry.coordinates[0] - currentCoordinates.lng;
-                let diffLat = vehicle.geometry.coordinates[1] - currentCoordinates.lat;
-
-                // Calculate the number of steps
-                let steps = 9000 / 60; // 60 frames per second
-
-                // Calculate the step size
-                let lngStep = diffLng / steps;
-                let latStep = diffLat / steps;
-                // Update the Heading property of the marker
-                markers[vehicle.properties.vehicle_id].properties.Heading = vehicle.properties.position_bearing;
-
-                // Start the animation
-                let i = 0;
-                function animateMarker() {
-                    if (i < steps) {
-                        // Update the marker's position
-                        markers[vehicle.properties.vehicle_id].setLngLat([
-                            currentCoordinates.lng + i * lngStep,
-                            currentCoordinates.lat + i * latStep
-                        ]);
-
-                        // Update the rotations of the markers
-                        updateMarkerRotations();
-                        
-                        // Request the next frame of the animation
-                        requestAnimationFrame(animateMarker);
+function fetchData(url, routeCode) {
+    return fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            // If routeCode is provided, use it to access the data
+            if (routeCode) {
+                console.log(data)
+                let features = [];
+                routeCode.forEach(code => {
+                    if (data[code]) {
+                        features = features.concat(data[code].features.filter(vehicle => vehicle.properties.trip_id));
                     }
-
-                    i++;
-                }
-
-                animateMarker();
-
-                // Assuming `vehicle.properties.timestamp` contains the new timestamp
-                let newTimestamp = vehicle.properties.timestamp;
-
-                // Create a new popup
-
-                // Assuming `popups[vehicle.properties.vehicle_id]` is the existing popup for the vehicle
-                let popup = markers[vehicle.properties.vehicle_id].getPopup();
-
-                if (popup) {
-                    // Assuming `route_code` and `timestamp` are available
-                    // Update the content of the popup
-                    popup.setHTML(`
-                        <div style="display: flex; align-items: center;justify-content:center;">
-                            <img src="${routeIcons[markers[vehicle.properties.vehicle_id].route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
-                            <span><b>Line</b></span>
-                        </div>                        
-                        Data from: ${new Date(markers[vehicle.properties.vehicle_id].timestamp * 1000).toLocaleTimeString()}
-                    `);        
-                }
+                });
+                return features;
+            } else {
+                return data.features.filter(vehicle => vehicle.properties.trip_id);
             }
-            else {
-                // Otherwise, create a new marker
-                const wrapper = document.createElement('div');
-                wrapper.className = 'wrapper';
-                const el = document.createElement('div');
-                el.className = 'marker';
+        });
+}
 
-                // Set the icon URL
-                const iconUrl = 'https://raw.githubusercontent.com/LACMTA/metro-iconography/main/Arrow.svg';
-                el.style.background = `url(${iconUrl}) no-repeat center/cover`;
+function animateMarker(vehicle, steps, lngStep, latStep, currentCoordinates) {
+    let i = 0;
+    return function() {
+        if (i < steps) {
+            markers[vehicle.properties.vehicle_id].setLngLat([
+                currentCoordinates.lng + i * lngStep,
+                currentCoordinates.lat + i * latStep
+            ]);
+            updateMarkerRotations();
+            requestAnimationFrame(animateMarker(vehicle, steps, lngStep, latStep, currentCoordinates));
+        }
+        i++;
+    }
+}
 
-                // Rotate the icon based on the heading
-                const heading = vehicle.properties.position_bearing;
-                wrapper.style.transform = `rotateZ(${heading}deg)`;
+function updatePopup(vehicle) {
+    let popup = markers[vehicle.properties.vehicle_id].getPopup();
+    if (popup) {
+        popup.setHTML(`
+            <div style="display: flex; align-items: center;justify-content:center;">
+                <img src="${routeIcons[markers[vehicle.properties.vehicle_id].route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
+                <span><b>Line</b></span>
+            </div>                        
+            Data from: ${new Date(markers[vehicle.properties.vehicle_id].timestamp * 1000).toLocaleTimeString()}
+        `);        
+    }
+}
 
-                // Force a re-render of the map
-                map.triggerRepaint();
-
-                el.style.backgroundRepeat = 'no-repeat';
-                el.style.backgroundSize = 'cover';
-                el.style.backgroundPosition = 'center';
-                el.style.backgroundColor = 'white';
-                el.style.borderRadius = '50%';
-                el.style.cursor = 'pointer';
-
-                // Get the current zoom level
-                const zoom = map.getZoom();
-
-                // Calculate the size of the icon based on the zoom level
-                const size = zoom >= 15 ? 40 : 40 * 0.5; // Increased size to 40px
-
-                el.style.width = `${size}px`;
-                el.style.height = `${size}px`;
-
-                // Add the marker element to the wrapper
-                wrapper.appendChild(el);
-
-                // Create a new popup
-                const popup = new maplibregl.Popup()
-                .setHTML(`
-                <div style="display: flex; align-items: center; justify-content: center;">
-                    <img src="${routeIcons[vehicle.properties.route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
-                    <span><b>Line</b></span>
-                </div>
-                Data from ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}`);
-
-                // Create the marker and add it to the map
-                const marker = new maplibregl.Marker({element: wrapper})
-                    .setLngLat(vehicle.geometry.coordinates)
-                    .setPopup(popup) // Set the popup
-                    .addTo(map);
-
-                // Store the bearing in the marker object
-                marker.bearing = vehicle.properties.position_bearing;
-                marker.properties = {
-                    vehicle_id: vehicle.properties.vehicle_id,
-                    Heading: vehicle.properties.position_bearing
-                };
-                marker.timestamp = vehicle.properties.timestamp;
-                marker.route_code = vehicle.properties.route_code;
-                // Add the marker to the map of markers
-                markers[vehicle.properties.vehicle_id] = marker;
-                updateMarkerRotations();
-                // Update features inside the map function
-                const feature = {
-                    type: 'Feature',
-                    geometry: {
-                        type: 'Point',
-                        coordinates: [vehicle.geometry[0], vehicle.geometry[1]]
-                    },
-                    properties: {
+function createNewMarker(vehicle) {
+                    // Otherwise, create a new marker
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'wrapper';
+                    const el = document.createElement('div');
+                    el.className = 'marker';
+    
+                    // Set the icon URL
+                    const iconUrl = 'https://raw.githubusercontent.com/LACMTA/metro-iconography/main/Arrow.svg';
+                    el.style.background = `url(${iconUrl}) no-repeat center/cover`;
+    
+                    // Rotate the icon based on the heading
+                    const heading = vehicle.properties.position_bearing;
+                    wrapper.style.transform = `rotateZ(${heading}deg)`;
+    
+                    // Force a re-render of the map
+                    map.triggerRepaint();
+    
+                    el.style.backgroundRepeat = 'no-repeat';
+                    el.style.backgroundSize = 'cover';
+                    el.style.backgroundPosition = 'center';
+                    el.style.backgroundColor = 'white';
+                    el.style.borderRadius = '50%';
+                    el.style.cursor = 'pointer';
+    
+                    // Get the current zoom level
+                    const zoom = map.getZoom();
+    
+                    // Calculate the size of the icon based on the zoom level
+                    const size = zoom >= 15 ? 40 : 40 * 0.5; // Increased size to 40px
+    
+                    el.style.width = `${size}px`;
+                    el.style.height = `${size}px`;
+    
+                    // Add the marker element to the wrapper
+                    wrapper.appendChild(el);
+    
+                    // Create a new popup
+                    const popup = new maplibregl.Popup()
+                    .setHTML(`
+                    <div style="display: flex; align-items: center; justify-content: center;">
+                        <img src="${routeIcons[vehicle.properties.route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
+                        <span><b>Line</b></span>
+                    </div>
+                    Data from ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}`);
+    
+                    // Create the marker and add it to the map
+                    const marker = new maplibregl.Marker({element: wrapper})
+                        .setLngLat(vehicle.geometry.coordinates)
+                        .setPopup(popup) // Set the popup
+                        .addTo(map);
+    
+                    // Store the bearing in the marker object
+                    marker.bearing = vehicle.properties.position_bearing;
+                    marker.properties = {
                         vehicle_id: vehicle.properties.vehicle_id,
                         Heading: vehicle.properties.position_bearing
-                        
-                    }
-                };
-                features.push(feature);
+                    };
+                    marker.timestamp = vehicle.properties.timestamp;
+                    marker.route_code = vehicle.properties.route_code;
+                    // Add the marker to the map of markers
+                    markers[vehicle.properties.vehicle_id] = marker;
+                    updateMarkerRotations();
+                    // Update features inside the map function
+                    const feature = {
+                        type: 'Feature',
+                        geometry: {
+                            type: 'Point',
+                            coordinates: [vehicle.geometry[0], vehicle.geometry[1]]
+                        },
+                        properties: {
+                            vehicle_id: vehicle.properties.vehicle_id,
+                            Heading: vehicle.properties.position_bearing,
+                            timestamp: vehicle.properties.timestamp
+                            
+                        }
+                    };
+                    features.push(feature);
+                    
+}
+
+window.setInterval(function () {
+    Promise.all([
+        fetchData('https://api.metro.net/LACMTA/vehicle_positions/route_code/901%2C910?format=geojson',['901','910']),
+        fetchData(apiUrl)
+    ])
+    .then(results => {
+        clearTimeout(timer);
+        let features = [];
+        let allVehicles = results[0].concat(results[1]);
+
+        allVehicles.forEach(vehicle => {
+            if (vehicle.properties.trip_id) {
+                if (markers[vehicle.properties.vehicle_id]) {
+                    let currentCoordinates = markers[vehicle.properties.vehicle_id].getLngLat();
+                    let diffLng = vehicle.geometry.coordinates[0] - currentCoordinates.lng;
+                    let diffLat = vehicle.geometry.coordinates[1] - currentCoordinates.lat;
+                    let steps = 9000 / 60;
+                    let lngStep = diffLng / steps;
+                    let latStep = diffLat / steps;
+                    markers[vehicle.properties.vehicle_id].properties.Heading = vehicle.properties.position_bearing;
+                    animateMarker(vehicle, steps, lngStep, latStep, currentCoordinates)();
+                    updatePopup(vehicle);
+                } else {
+                    createNewMarker(vehicle);
                 }
-                });
+            }
+        });
+
+        // ... rest of the code ...
         map.getSource('vehicles').setData({
             type: 'FeatureCollection',
             features: features
@@ -349,7 +396,7 @@ window.setInterval(function () {
         // Update the content of the update time div
         updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
         updateTimeDiv.style.fontSize = '12px';
-        if (!data.features.some(vehicle => vehicle.properties.trip_id)) {
+        if (!allVehicles.some(vehicle => vehicle.properties.trip_id)) {
             document.getElementById('loading').style.display = 'block';
             document.getElementById('loading').innerHTML = "No vehicles currently running, please back later.";
         }
@@ -359,9 +406,7 @@ window.setInterval(function () {
         document.getElementById('loading').style.display = 'block';
         document.getElementById('loading').innerHTML = "Error loading data. Please check your connection or try again later.";
     });
-
 }, 9000);
-
 
 // Call the updateArrow function whenever the map moves
 let features = [];
@@ -497,7 +542,7 @@ window.onload = function() {
 
 </script>
 <div id="legend" style="background-color: #fff; padding: 10px; position: absolute; bottom: 50px; right: 10px; z-index: 1; transition: right 0.5s;">
-    <h4>Live Metro Rail Vehicle Locations</h4>
+    <h4><span class="beta">Beta</span> Live Metro Rail and Busway Vehicles</h4>
     <div style="display: flex; align-items: center;">
         <img src="https://lacmta.github.io/metro-iconography/Arrow.svg" width="20" height="20" style="transform: rotate(-90deg); margin-right: 10px; margin-left: 10px;">
         Rail Vehicle
@@ -533,6 +578,16 @@ window.onload = function() {
         <span style="background-color: #E56DB1; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> K Line
     </div>
     <div style="display: flex; align-items: center;">
+        <span style="background-color: #ADB8BF; color: #000000;display: inline-block; width: 10px; height: 4px;"></span>
+        <img src="https://lacmta.github.io/metro-iconography/Service_JLine.svg" alt="J" width="20" height="20">
+        <span style="background-color: #ADB8BF; color: #000000;display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> J Line
+    </div>
+    <div style="display: flex; align-items: center;">
+        <span style="background-color: #FC4C02; display: inline-block; width: 10px; height: 4px;"></span>
+        <img src="https://lacmta.github.io/metro-iconography/Service_GLine.svg" alt="G" width="20" height="20">
+        <span style="background-color: #FC4C02; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> G Line
+    </div>
+    <div style="display: flex; align-items: center;">
         <div style="border-bottom: 2px dashed #ff0000; width: 20px; margin-right: 5px;"></div>
         <span onclick="map.flyTo({center: [-118.24425384491579,34.02392777679307], zoom: 14})"> 10 Freeway Closure </span><i class="fas fa-exclamation-triangle" style="cursor: pointer; color: orange;" onclick="map.flyTo({center: [-118.24425384491579,34.02392777679307], zoom: 13});"></i>
     </div>
@@ -547,9 +602,6 @@ window.onload = function() {
 </div>
 
 
-</div><div id="loading" style="cursor:default;position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 10px; background-color: rgba(0, 0, 0, 0.5); color: white; border-radius: 5px; z-index: 9999;">
-    Loading live data 
-    <span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
 </div>
 </body>
 <script>
@@ -563,7 +615,9 @@ const routeNames = {
     '804': 'L Line',
     '806': 'E Line',
     '807': 'K Line',
-    '805': 'D Line'
+    '805': 'D Line',
+    '901': 'G Line',
+    '910': 'J Line'
 
 };
 
@@ -613,6 +667,33 @@ function updateMarkerRotations() {
         // Assuming `marker.popup` is the popup for the vehicle
 
     }
+}
+// Bounding box coordinates for Los Angeles County
+const LA_COUNTY_BOUNDS = {
+    north: 34.8233,
+    south: 33.7037,
+    west: -118.6682,
+    east: -117.6462
+};
+// Check if Geolocation API is available
+if ("geolocation" in navigator) {
+    navigator.geolocation.getCurrentPosition(function(position) {
+        var lat = position.coords.latitude;
+        var lng = position.coords.longitude;
+
+        // Check if the user is in Los Angeles County
+        if (lat >= LA_COUNTY_BOUNDS.south && lat <= LA_COUNTY_BOUNDS.north && lng >= LA_COUNTY_BOUNDS.west && lng <= LA_COUNTY_BOUNDS.east) {
+            // Create a new HTML element for the user's location
+            var userLocation = document.createElement("div");
+            userLocation.id = "userLocation";
+            userLocation.className = "pulsatingIcon";
+
+            // Add the user's location to the map
+            map.addOverlay(userLocation, lat, lng);
+        }
+    });
+} else {
+    console.log("Geolocation is not supported by this browser.");
 }
 
 </script>

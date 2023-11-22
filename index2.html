@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Metro - Rail Time Map</title>
+<meta property="og:description" content="Real-time rail vehicle locations for Metro." />  <meta charset='utf-8'>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.css' />
+  <script src='https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.js'></script>
+
+  <script src="https://unpkg.com/mapbox-gl-esri-sources@0.0.7/dist/mapbox-gl-esri-sources.js"></script>
+  <!-- Include the Font Awesome library -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans&display=swap" rel="stylesheet">
+
+  <style>
+    .pulsatingIcon {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: red;
+        animation: pulsate 2s infinite;
+    }
+
+    @keyframes pulsate {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.5); opacity: 0.5; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+      body { margin: 0; padding: 0;     font-family: 'Open Sans', sans-serif;    overflow-x: hidden; /* Prevents horizontal overflow */}
+.dot {
+    animation: dot 1s infinite;
+}
+@keyframes slideAway {
+    0% {transform: translateX(0);}
+    60% {transform: translateX(20%);}
+    100% {transform: translateX(100%);}
+}
+
+#legend {
+    transform: translateX(0);
+    cursor: pointer;
+    padding: 0;
+}
+
+#legend.hidden {
+    animation: slideAway .5s forwards;
+    padding-left: 30px;
+}
+@keyframes dot {
+    0%, 20% { opacity: 0; }
+    50%, 100% { opacity: 1; }
+}
+#toggle-legend {
+    position: absolute;
+    left: -30px; /* Adjust as needed */
+    top: 0;
+    bottom: 0;
+    width: 30px; /* Adjust as needed */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    background-color: #fff; /* Adjust as needed */
+    border: none;
+    cursor: pointer;
+}
+
+#toggle-legend i {
+    font-size: 12px; /* Adjust as needed */
+}
+
+
+.dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+.beta {
+    color: #FF4500; /* Orange text color */
+    font-size: 0.8em; /* Smaller font size */
+}
+      html, body, #map { height: 100%; }
+
+        .marker {
+            display: block;
+            visibility: visible;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            padding: 0;
+            background-size: cover;
+
+        }
+
+
+    .maplibregl-ctrl-icon.home-icon {
+        background-color: #fff;
+        border: none;
+        border-radius: 3px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        cursor: pointer;
+        padding: 6px;
+        width: auto;
+        height: auto;
+        outline: none;
+    }
+
+    .maplibregl-ctrl-icon.home-icon:hover {
+        background-color: #f8f8f8;
+    }
+
+    .maplibregl-ctrl-icon.home-icon i {
+        color: #404040;
+        font-size: 14px;
+    }
+
+    .update-time {
+        position: absolute;
+        top: 0;
+        right: 0;
+        font-size: 14px;
+        color: #404040;
+        background-color: rgba(255, 255, 255, 0.2); /* white background with 0.2 opacity */
+        padding: 10px; /* Add some padding so the text isn't right up against the edge */
+    }
+    .issues{
+        font-size: 12px;
+    }
+    #brt{
+        font-size: 16px;
+        margin-left: 20px;
+    }
+    </style>
+</head>
+<body>
+    <div id="loading" style="cursor:default;position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 10px; background-color: rgba(0, 0, 0, 0.5); color: white; border-radius: 5px; z-index: 9999;">
+    Loading live data 
+    <span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
+</div>
+<div id="map"></div>
+<script>
+// config options
+  const ESRI_KEY =  "AAPKccc2cf38fecc47649e91529acf524abflSSkRTjWwH0AYmZi8jaRo-wdpcTf6z67CLCkOjVYlw3pZyUIF_Y4KGBndq35Y02z";
+  const MAPTILER_KEY = "KydZlIiVFdYDFFfQ4QYq"
+  const basemapEnum = "65aff2873118478482ec3dec199e9058";
+  let timer = setTimeout(() => {
+    document.getElementById('loading').innerHTML = "Error loading data or no vehicles currently running. Please check your connection or try again later.";
+}, 15000); // 15 seconds
+
+
+// Create a map of vehicle IDs to markers
+let markers = {};
+
+// Get the current time
+const now = new Date();
+
+// map setup
+
+  let map = new maplibregl.Map({
+    container: 'map',
+    center: [-118.25133692966446, 34.05295151499077], 
+    zoom: 9,
+    pitch: 20,
+    bearing: 0,
+    container: 'map',
+    antialias: true,
+    minZoom: 8, // Minimum zoom level
+    style: `https://basemapstyles-api.arcgis.com/arcgis/rest/services/styles/v2/styles/items/${basemapEnum}?token=${ESRI_KEY}`,
+  });
+
+  const routeIcons = {
+    '801': 'https://lacmta.github.io/metro-iconography/Service_ALine.svg',
+    '802': 'https://lacmta.github.io/metro-iconography/Service_BLine.svg',
+    '803': 'https://lacmta.github.io/metro-iconography/Service_CLine.svg',
+    '804': 'https://lacmta.github.io/metro-iconography/Service_ELine2.svg',
+    '806': 'https://lacmta.github.io/metro-iconography/Service_LLine.svg',
+    '807': 'https://lacmta.github.io/metro-iconography/Service_KLine.svg',
+    '805': 'https://lacmta.github.io/metro-iconography/Service_DLine.svg',
+    '901': 'https://lacmta.github.io/metro-iconography/Service_GLine.svg',
+    '910': 'https://lacmta.github.io/metro-iconography/Service_JLine.svg'
+
+};
+
+  // The 'building' layer in the streets vector source contains building-height
+  // data from OpenStreetMap.
+  map.on('load', () => {
+      // Insert the layer beneath any symbol layer.
+      const layers = map.getStyle().layers;
+
+      let labelLayerId;
+      for (let i = 0; i < layers.length; i++) {
+          if (layers[i].type === 'symbol' && layers[i].layout['text-field']) {
+              labelLayerId = layers[i].id;
+              break;
+          }
+      }
+      new mapboxglEsriSources.TiledMapService('imagery-source', map, {
+        url: 'https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Map_RGB_Vector_Offset_RC5/MapServer'
+    })
+
+    map.addLayer({
+      id: 'imagery-layer',
+      type: 'raster',
+      source: 'imagery-source'
+  })
+  let apiUrl = 'https://api.metro.net/LACMTA_Rail/vehicle_positions?format=geojson'
+
+      map.addSource('vehicles', {
+        type: 'geojson',
+        data: apiUrl,
+    });
+// Declare and initialize the popups object
+let popups = {};
+
+
+function fetchData(url, routeCode) {
+    return fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            // If routeCode is provided, use it to access the data
+            if (routeCode) {
+                console.log(data)
+                let features = [];
+                routeCode.forEach(code => {
+                    if (data[code]) {
+                        features = features.concat(data[code].features.filter(vehicle => vehicle.properties.trip_id));
+                    }
+                });
+                return features;
+            } else {
+                return data.features.filter(vehicle => vehicle.properties.trip_id);
+            }
+        });
+}
+
+function animateMarker(vehicle, steps, lngStep, latStep, currentCoordinates) {
+    let i = 0;
+    return function() {
+        if (i < steps) {
+            markers[vehicle.properties.vehicle_id].setLngLat([
+                currentCoordinates.lng + i * lngStep,
+                currentCoordinates.lat + i * latStep
+            ]);
+            updateMarkerRotations();
+            requestAnimationFrame(animateMarker(vehicle, steps, lngStep, latStep, currentCoordinates));
+        }
+        i++;
+    }
+}
+
+function updatePopup(vehicle) {
+    let popup = markers[vehicle.properties.vehicle_id].getPopup();
+    if (popup) {
+        popup.setHTML(`
+            <div style="display: flex; align-items: center;justify-content:center;">
+                <img src="${routeIcons[markers[vehicle.properties.vehicle_id].route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
+                <span><b>Line</b></span>
+            </div>                        
+            Data from: ${new Date(markers[vehicle.properties.vehicle_id].timestamp * 1000).toLocaleTimeString()}
+        `);        
+    }
+}
+
+function createNewMarker(vehicle) {
+                    // Otherwise, create a new marker
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'wrapper';
+                    const el = document.createElement('div');
+                    el.className = 'marker';
+    
+                    // Set the icon URL
+                    const iconUrl = 'https://raw.githubusercontent.com/LACMTA/metro-iconography/main/Arrow.svg';
+                    el.style.background = `url(${iconUrl}) no-repeat center/cover`;
+    
+                    // Rotate the icon based on the heading
+                    const heading = vehicle.properties.position_bearing;
+                    wrapper.style.transform = `rotateZ(${heading}deg)`;
+    
+                    // Force a re-render of the map
+                    map.triggerRepaint();
+    
+                    el.style.backgroundRepeat = 'no-repeat';
+                    el.style.backgroundSize = 'cover';
+                    el.style.backgroundPosition = 'center';
+                    el.style.backgroundColor = 'white';
+                    el.style.borderRadius = '50%';
+                    el.style.cursor = 'pointer';
+    
+                    // Get the current zoom level
+                    const zoom = map.getZoom();
+    
+                    // Calculate the size of the icon based on the zoom level
+                    const size = zoom >= 15 ? 40 : 40 * 0.5; // Increased size to 40px
+    
+                    el.style.width = `${size}px`;
+                    el.style.height = `${size}px`;
+    
+                    // Add the marker element to the wrapper
+                    wrapper.appendChild(el);
+    
+                    // Create a new popup
+                    const popup = new maplibregl.Popup()
+                    .setHTML(`
+                    <div style="display: flex; align-items: center; justify-content: center;">
+                        <img src="${routeIcons[vehicle.properties.route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
+                        <span><b>Line</b></span>
+                    </div>
+                    Data from ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}`);
+    
+                    // Create the marker and add it to the map
+                    const marker = new maplibregl.Marker({element: wrapper})
+                        .setLngLat(vehicle.geometry.coordinates)
+                        .setPopup(popup) // Set the popup
+                        .addTo(map);
+    
+                    // Store the bearing in the marker object
+                    marker.bearing = vehicle.properties.position_bearing;
+                    marker.properties = {
+                        vehicle_id: vehicle.properties.vehicle_id,
+                        Heading: vehicle.properties.position_bearing
+                    };
+                    marker.timestamp = vehicle.properties.timestamp;
+                    marker.route_code = vehicle.properties.route_code;
+                    // Add the marker to the map of markers
+                    markers[vehicle.properties.vehicle_id] = marker;
+                    updateMarkerRotations();
+                    // Update features inside the map function
+                    const feature = {
+                        type: 'Feature',
+                        geometry: {
+                            type: 'Point',
+                            coordinates: [vehicle.geometry[0], vehicle.geometry[1]]
+                        },
+                        properties: {
+                            vehicle_id: vehicle.properties.vehicle_id,
+                            Heading: vehicle.properties.position_bearing,
+                            timestamp: vehicle.properties.timestamp
+                            
+                        }
+                    };
+                    features.push(feature);
+                    
+}
+
+window.setInterval(function () {
+    Promise.all([
+        fetchData('https://api.metro.net/LACMTA/vehicle_positions/route_code/901%2C910?format=geojson',['901','910']),
+        fetchData(apiUrl)
+    ])
+    .then(results => {
+        clearTimeout(timer);
+        let features = [];
+        let allVehicles = results[0].concat(results[1]);
+
+        allVehicles.forEach(vehicle => {
+            if (vehicle.properties.trip_id) {
+                if (markers[vehicle.properties.vehicle_id]) {
+                    let currentCoordinates = markers[vehicle.properties.vehicle_id].getLngLat();
+                    let diffLng = vehicle.geometry.coordinates[0] - currentCoordinates.lng;
+                    let diffLat = vehicle.geometry.coordinates[1] - currentCoordinates.lat;
+                    let steps = 9000 / 60;
+                    let lngStep = diffLng / steps;
+                    let latStep = diffLat / steps;
+                    markers[vehicle.properties.vehicle_id].properties.Heading = vehicle.properties.position_bearing;
+                    animateMarker(vehicle, steps, lngStep, latStep, currentCoordinates)();
+                    updatePopup(vehicle);
+                } else {
+                    createNewMarker(vehicle);
+                }
+            }
+        });
+
+        // ... rest of the code ...
+        map.getSource('vehicles').setData({
+            type: 'FeatureCollection',
+            features: features
+        });
+        // Hide the loading div after the markers are loaded
+        document.getElementById('loading').style.display = 'none';
+        // Get the current time
+        const now = new Date();
+
+        // Get the update time div
+        const updateTimeDiv = document.getElementById('update-time');
+
+        // Update the content of the update time div
+        updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
+        updateTimeDiv.style.fontSize = '12px';
+        if (!allVehicles.some(vehicle => vehicle.properties.trip_id)) {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loading').innerHTML = "No vehicles currently running, please back later.";
+        }
+    })
+    .catch(error => {
+        console.error(error);
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('loading').innerHTML = "Error loading data. Please check your connection or try again later.";
+    });
+}, 9000);
+
+// Call the updateArrow function whenever the map moves
+let features = [];
+    map.addSource('openmaptiles', {
+      url: `https://api.maptiler.com/tiles/v3/tiles.json?key=${MAPTILER_KEY}`,
+      type: 'vector',
+  });
+
+
+      map.addLayer({
+        'id': 'vehicles',
+        'type': 'symbol',
+        'source': 'vehicles',
+        'layout': {
+            'icon-image': 'rail',
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true
+        }
+    });
+      map.addLayer(
+          {
+              'id': '3d-buildings',
+              'source': 'openmaptiles',
+              'source-layer': 'building',
+              'type': 'fill-extrusion',
+              'minzoom': 14,
+              'paint': {
+                  'fill-extrusion-color': [
+                      'interpolate',
+                      ['linear'],
+                      ['get', 'render_height'],0, 'lightgray', 200, 'hsl(38, 28%, 77%)', 400, 'hsl(38, 28%, 77%)'
+                  ],
+                  'fill-extrusion-opacity': 0.5,
+                  'fill-extrusion-height': [
+                      'interpolate',
+                      ['linear'],
+                      ['zoom'],
+                      15,
+                      0,
+                      16,
+                      ['get', 'render_height']
+                  ],
+                  'fill-extrusion-base': ['case',
+                      ['>=', ['get', 'zoom'], 16],
+                      ['get', 'render_min_height'], 0
+                  ]
+              }
+          },
+          labelLayerId
+      );
+
+    });
+
+    // Add navigation controls to the top-left corner of the map
+map.addControl(new maplibregl.NavigationControl(), 'top-left');
+    // Create a home button
+class HomeControl {
+    onAdd(map) {
+        this.map = map;
+        this.container = document.createElement('div');
+        this.container.className = 'maplibregl-ctrl';
+        const button = document.createElement('button');
+        button.className = 'maplibregl-ctrl-icon home-icon'; // Add 'home-icon' class
+        button.innerHTML = '<i class="fas fa-home"></i>';
+        button.addEventListener('click', () => {
+            this.map.flyTo({
+                center: [-118.25133692966446, 34.05295151499077],
+                zoom: 9,
+                pitch: 20,
+                bearing: 0
+            });
+        });
+        this.container.appendChild(button);
+        return this.container;
+    }
+
+    onRemove() {
+        this.container.parentNode.removeChild(this.container);
+        this.map = undefined;
+    }
+}
+map.on('load', function() {
+    // Load the GeoJSON data
+    fetch('10closure.geojson')
+        .then(response => response.json())
+        .then(data => {
+            // Add the data as a new source
+            map.addSource('freeway-closure', {
+                type: 'geojson',
+                data: data
+            });
+
+            // Create a new layer for the line
+            map.addLayer({
+                id: 'freeway-closure-layer',
+                type: 'line',
+                source: 'freeway-closure',
+                paint: {
+                    'line-color': '#ff0000', // Red color
+                    'line-width': 5,
+                    'line-dasharray': [2, 1], // Dotted line
+                    'line-opacity': 0.6 // Semi-transparent
+                }
+            });
+            // Create a new layer for the label
+
+        });
+});
+// Add a click event listener to the layer
+map.on('click', 'freeway-closure-layer', function(e) {
+    // Create a new popup
+    new maplibregl.Popup()
+        .setLngLat(e.lngLat) // Set the coordinates of the popup
+        .setHTML("10 Freeway Closure") // Set the HTML content of the popup to the 'title' property of the clicked feature
+        .addTo(map); // Add the popup to the map
+});
+
+window.onload = function() {
+    const legend = document.getElementById('legend');
+    const toggleLegend = document.getElementById('toggle-legend');
+
+    if (legend && toggleLegend) {
+        legend.addEventListener('click', function() {
+            this.classList.toggle('hidden');
+
+            // Change the icon based on the visibility
+            toggleLegend.innerHTML = this.classList.contains('hidden') ? '<i class="fas fa-chevron-right"></i>' : '<i class="fas fa-chevron-left"></i>';
+        });
+    } else {
+        console.error('Element not found');
+    }
+};
+
+</script>
+<div id="legend" style="background-color: #fff; padding: 10px; position: absolute; bottom: 50px; right: 10px; z-index: 1; transition: right 0.5s;">
+    <h4><span class="beta">Beta</span> Live Metro Rail and Busway Vehicles</h4>
+    <div style="display: flex; align-items: center;">
+        <img src="https://lacmta.github.io/metro-iconography/Arrow.svg" width="20" height="20" style="transform: rotate(-90deg); margin-right: 10px; margin-left: 10px;">
+        Rail Vehicle
+    </div>
+    <div style="display: flex; align-items: center;">
+        <span style="background-color: #0072BC; display: inline-block; width: 10px; height: 4px;"></span>
+        <img src="https://lacmta.github.io/metro-iconography/Service_ALine.svg" alt="A" width="20" height="20">
+        <span style="background-color: #0072BC; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> A Line
+    </div>
+    <div style="display: flex; align-items: center;">
+        <span style="background-color: #EB131B; display: inline-block; width: 10px; height: 4px;"></span>
+        <img src="https://lacmta.github.io/metro-iconography/Service_BLine.svg" alt="B" width="20" height="20">
+        <span style="background-color: #EB131B; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> B Line
+    </div>
+    <div style="display: flex; align-items: center;">
+        <span style="background-color: #58A738; display: inline-block; width: 10px; height: 4px;"></span>
+        <img src="https://lacmta.github.io/metro-iconography/Service_CLine.svg" alt="C" width="20" height="20">
+        <span style="background-color: #58A738; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> C Line
+    </div>
+    <div style="display: flex; align-items: center;">
+        <span style="background-color: #A05DA5; display: inline-block; width: 10px; height: 4px;"></span>
+        <img src="https://lacmta.github.io/metro-iconography/Service_DLine.svg" alt="D" width="20" height="20">
+        <span style="background-color: #A05DA5; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> D Line
+    </div>
+    <div style="display: flex; align-items: center;">
+        <span style="background-color: #FDB913; display: inline-block; width: 10px; height: 4px;"></span>
+        <img src="https://lacmta.github.io/metro-iconography/Service_ELine2.svg" alt="E" width="20" height="20">
+        <span style="background-color: #FDB913; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> E Line
+    </div>
+    <div style="display: flex; align-items: center;">
+        <span style="background-color: #E56DB1; display: inline-block; width: 10px; height: 4px;"></span>
+        <img src="https://lacmta.github.io/metro-iconography/Service_KLine.svg" alt="K" width="20" height="20">
+        <span style="background-color: #E56DB1; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> K Line
+    </div>
+    <div style="display: flex; align-items: center;">
+        <span style="background-color: #ADB8BF; color: #000000;display: inline-block; width: 10px; height: 4px;"></span>
+        <img src="https://lacmta.github.io/metro-iconography/Service_JLine.svg" alt="J" width="20" height="20">
+        <span style="background-color: #ADB8BF; color: #000000;display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> J Line
+    </div>
+    <div style="display: flex; align-items: center;">
+        <span style="background-color: #FC4C02; display: inline-block; width: 10px; height: 4px;"></span>
+        <img src="https://lacmta.github.io/metro-iconography/Service_GLine.svg" alt="G" width="20" height="20">
+        <span style="background-color: #FC4C02; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> G Line
+    </div>
+    <div style="display: flex; align-items: center;">
+        <div style="border-bottom: 2px dashed #ff0000; width: 20px; margin-right: 5px;"></div>
+        <span onclick="map.flyTo({center: [-118.24425384491579,34.02392777679307], zoom: 14})"> 10 Freeway Closure </span><i class="fas fa-exclamation-triangle" style="cursor: pointer; color: orange;" onclick="map.flyTo({center: [-118.24425384491579,34.02392777679307], zoom: 13});"></i>
+    </div>
+<div id="update-time"></div>
+<div style="display: flex; justify-content: flex-end; align-items: center;">
+    <a class="issues" href="https://github.com/LACMTA/realtime-map" target="_blank" style="display: flex; align-items: center; text-decoration: none; color: inherit;">
+        <i class="fab fa-github" style="margin-right: 5px;"></i>
+        <a href="https://github.com/LACMTA/realtime-map/issues" style="text-decoration: none;" target="_blank">Spot an issue?</a>
+    </a>
+</div>
+    <button id="toggle-legend"><i class="fas fa-chevron-left"></i></button>
+</div>
+
+
+</div>
+</body>
+<script>
+    // Add the home control to the map
+// Assuming your vehicle layer is named 'vehicle-layer'
+// Create a mapping from route codes to route names
+const routeNames = {
+    '801': 'A Line',
+    '802': 'B Line',
+    '803': 'C Line',
+    '804': 'L Line',
+    '806': 'E Line',
+    '807': 'K Line',
+    '805': 'D Line',
+    '901': 'G Line',
+    '910': 'J Line'
+
+};
+
+    map.addControl(new HomeControl(), 'top-left');
+map.on('zoom', function() {
+    // Get the current zoom level
+    const zoom = map.getZoom();
+
+    // Calculate the size of the marker and the arrow based on the zoom level
+    const markerSize = zoom >= 15 ? 32 : 32 * 0.5;
+    const arrowSize = zoom >= 15 ? 5 : 5 * 0.5;
+
+    // Update the size of each marker
+    for (const vehicleId in markers) {
+        const marker = markers[vehicleId];
+        const el = marker.getElement();
+
+        // Update the size of the marker
+        el.style.width = `${markerSize}px`;
+        el.style.height = `${markerSize}px`;
+    }
+});
+map.on('rotate', function() {
+    updateMarkerRotations();
+});
+function updateMarkerRotations() {
+    // Get the map's current bearing
+    const mapBearing = map.getBearing();
+
+    // Iterate over each marker
+    for (const vehicleId in markers) {
+        const marker = markers[vehicleId];
+        const el = marker.getElement().querySelector('.marker'); // This is the marker element
+
+        // Get the bearing from the marker object
+        const bearing = marker.properties.Heading;
+
+        // Adjust the bearing by 180 degrees
+        const adjustedBearing = (bearing + 180) % 360;
+
+        // Calculate the final bearing based on the map's bearing
+        const finalBearing = (adjustedBearing - mapBearing);
+
+        // Apply the necessary transformations for correct placement and rotation
+        el.style.transform = `translate(-50%, -50%) rotateZ(${finalBearing}deg)`;
+
+        // Assuming `marker.popup` is the popup for the vehicle
+
+    }
+}
+// Bounding box coordinates for Los Angeles County
+const LA_COUNTY_BOUNDS = {
+    north: 34.8233,
+    south: 33.7037,
+    west: -118.6682,
+    east: -117.6462
+};
+// Check if Geolocation API is available
+if ("geolocation" in navigator) {
+    navigator.geolocation.getCurrentPosition(function(position) {
+        var lat = position.coords.latitude;
+        var lng = position.coords.longitude;
+
+        // Check if the user is in Los Angeles County
+        if (lat >= LA_COUNTY_BOUNDS.south && lat <= LA_COUNTY_BOUNDS.north && lng >= LA_COUNTY_BOUNDS.west && lng <= LA_COUNTY_BOUNDS.east) {
+            // Create a new HTML element for the user's location
+            var userLocation = document.createElement("div");
+            userLocation.id = "userLocation";
+            userLocation.className = "pulsatingIcon";
+
+            // Add the user's location to the map
+            map.addOverlay(userLocation, lat, lng);
+        }
+    });
+} else {
+    console.log("Geolocation is not supported by this browser.");
+}
+
+
+
+
+// websockets
+// Create a new WebSocket connection
+let socket = new WebSocket("wss://api.metro.net/ws/LACMTA_Rail/vehicle_positions");
+
+// Handle the connection opening
+socket.onopen = function(event) {
+    console.log("WebSocket connection opened");
+};
+
+// Handle incoming messages
+socket.onmessage = function(event) {
+    let data = JSON.parse(event.data);
+    console.log('data')
+    console.log(data)
+    // Clear the existing markers
+    map.getSource('vehicles').setData({
+        type: "FeatureCollection",
+        features: []
+    });
+
+
+
+    // Set the new markers
+    Object.keys(data).forEach(route => {
+        let geoJson = data[route];
+        if (geoJson.type === "FeatureCollection" && geoJson.features.length > 0) {
+            map.getSource('vehicles').setData(geoJson);
+        }
+    });
+};
+
+// Handle errors
+socket.onerror = function(error) {
+    console.log(`WebSocket error: ${error}`);
+};
+
+// Handle the connection closing
+socket.onclose = function(event) {
+    console.log("WebSocket connection closed");
+};
+</script>
+</html>
