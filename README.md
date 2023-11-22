@@ -1,4 +1,4 @@
-# Realtime Map
+# Metro Realtime Map
 
 Realtime Map is a web application that provides real-time updates of vehicle locations on a map.
 
