@@ -255,20 +255,24 @@
                                 currentCoordinates.lng + i * lngStep,
                                 currentCoordinates.lat + i * latStep
                             ]);
-    
+
                             // Update the rotations of the markers
                             updateMarkerRotations();
                             
                             // Request the next frame of the animation
                             requestAnimationFrame(animateMarker);
+                        } else {
+                            // The animation is complete, remove the marker from the map
+                            markers[vehicle.properties.vehicle_id].remove();
+
+                            // Delete the marker from the markers object
+                            delete markers[vehicle.properties.vehicle_id];
                         }
-    
+
                         i++;
                     }
-    
-                    animateMarker();
-    
-                    // Assuming `vehicle.properties.timestamp` contains the new timestamp
+
+                    animateMarker();                    // Assuming `vehicle.properties.timestamp` contains the new timestamp
                     let newTimestamp = vehicle.properties.timestamp;
     
                     // Create a new popup
