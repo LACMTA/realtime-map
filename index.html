@@ -13,19 +13,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans&display=swap" rel="stylesheet">
 
   <style>
-    .pulsatingIcon {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: red;
-        animation: pulsate 2s infinite;
-    }
-
-    @keyframes pulsate {
-        0% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.5); opacity: 0.5; }
-        100% { transform: scale(1); opacity: 1; }
-    }
       body { margin: 0; padding: 0;     font-family: 'Open Sans', sans-serif;    overflow-x: hidden; /* Prevents horizontal overflow */}
 .dot {
     animation: dot 1s infinite;
@@ -225,7 +212,19 @@
             // If data is returned, clear the timer
             clearTimeout(timer);
             let features = [];
+            // Create a set of the vehicle_ids in the new data
+            let newVehicleIds = new Set(data.features.map(vehicle => vehicle.properties.vehicle_id));
+
+            // Remove markers that are not in the new data
+            for (let vehicle_id in markers) {
+                if (!newVehicleIds.has(vehicle_id)) {
+                    // The marker is not in the new data, remove it from the map
+                    markers[vehicle_id].remove();
     
+                    // Delete the marker from the markers object
+                    delete markers[vehicle_id];
+                }
+            }
             // For each vehicle in the data
             data.features.filter(vehicle => vehicle.properties.trip_id).forEach(vehicle => {
                 // If a marker for this vehicle already exists
@@ -261,12 +260,6 @@
                             
                             // Request the next frame of the animation
                             requestAnimationFrame(animateMarker);
-                        } else {
-                            // The animation is complete, remove the marker from the map
-                            markers[vehicle.properties.vehicle_id].remove();
-
-                            // Delete the marker from the markers object
-                            delete markers[vehicle.properties.vehicle_id];
                         }
 
                         i++;
@@ -637,7 +630,6 @@ if ("geolocation" in navigator) {
             // Create a new marker
             let marker = new maplibregl.Marker(userLocation)
                 .setLngLat([lng, lat])
-                .addTo(map);
 
             // Zoom in to the user's location
             map.flyTo({center: [lng, lat], zoom: 12});
