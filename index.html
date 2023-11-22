@@ -27,6 +27,7 @@
     transform: translateX(0);
     cursor: pointer;
     padding: 0;
+    z-index: 9999;
 }
 
 @media (max-width: 600px) {
@@ -59,6 +60,12 @@
     cursor: pointer;
 }
 
+
+@media screen and (max-width: 600px) {
+    #toggle-legend {
+        left: 0; /* Position the element at the left edge of the screen on small screens */
+    }
+}
 #toggle-legend i {
     font-size: 12px; /* Adjust as needed */
 }
