@@ -124,16 +124,16 @@
         font-size: 14px;
     }
 
-    .update-time {
+    #update-time {
         position: absolute;
-        top: 0;
-        right: 0;
-        font-size: 14px;
-        color: #404040;
-        background-color: rgba(255, 255, 255, 0.2); /* white background with 0.2 opacity */
-        padding: 10px; /* Add some padding so the text isn't right up against the edge */
+        top: 10px;
+        right: 10px;
+        background-color: white;
+        padding: 5px;
+        border-radius: 3px;
+        z-index: 1; /* Ensure it's above other map elements */
     }
-    .issues{
+        .issues{
         font-size: 12px;
     }
 
@@ -475,41 +475,6 @@
             this.map = undefined;
         }
     }
-    map.on('load', function() {
-        // Load the GeoJSON data
-        fetch('10closure.geojson')
-            .then(response => response.json())
-            .then(data => {
-                // Add the data as a new source
-                map.addSource('freeway-closure', {
-                    type: 'geojson',
-                    data: data
-                });
-    
-                // Create a new layer for the line
-                map.addLayer({
-                    id: 'freeway-closure-layer',
-                    type: 'line',
-                    source: 'freeway-closure',
-                    paint: {
-                        'line-color': '#ff0000', // Red color
-                        'line-width': 5,
-                        'line-dasharray': [2, 1], // Dotted line
-                        'line-opacity': 0.6 // Semi-transparent
-                    }
-                });
-                // Create a new layer for the label
-    
-            });
-    });
-    // Add a click event listener to the layer
-    map.on('click', 'freeway-closure-layer', function(e) {
-        // Create a new popup
-        new maplibregl.Popup()
-            .setLngLat(e.lngLat) // Set the coordinates of the popup
-            .setHTML("10 Freeway Closure") // Set the HTML content of the popup to the 'title' property of the clicked feature
-            .addTo(map); // Add the popup to the map
-    });
     
     window.onload = function() {
         const legend = document.getElementById('legend');
@@ -528,6 +493,8 @@
     };
     
     </script>
+    <div id="update-time"></div>
+
     <div id="legend" style="background-color: #fff; padding: 10px; position: absolute; bottom: 50px; right: 10px; z-index: 1; transition: right 0.5s;">
     <h4><span class="beta">Beta</span> Live Metro Rail Vehicles</h4>
     <div style="display: flex; align-items: center;">
@@ -565,10 +532,7 @@
         <span style="background-color: #E56DB1; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> K Line
     </div>
     <div style="display: flex; align-items: center;">
-        <div style="border-bottom: 2px dashed #ff0000; width: 20px; margin-right: 5px;"></div>
-        <span onclick="map.flyTo({center: [-118.24425384491579,34.02392777679307], zoom: 14})"> 10 Freeway Closure </span><i class="fas fa-exclamation-triangle" style="cursor: pointer; color: orange;" onclick="map.flyTo({center: [-118.24425384491579,34.02392777679307], zoom: 13});"></i>
     </div>
-<div id="update-time"></div>
 <div style="display: flex; justify-content: flex-end; align-items: center;">
     <a class="issues" href="https://github.com/LACMTA/realtime-map" target="_blank" style="display: flex; align-items: center; text-decoration: none; color: inherit;">
         <i class="fab fa-github" style="margin-right: 5px;"></i>
