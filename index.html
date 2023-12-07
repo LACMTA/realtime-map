@@ -392,9 +392,19 @@
             // Update the content of the update time div
             updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
             updateTimeDiv.style.fontSize = '12px';
-            if (!data.features.some(vehicle => vehicle.properties.trip_id)) {
-                document.getElementById('loading').style.display = 'block';
-                document.getElementById('loading').innerHTML = "No vehicles currently running, please back later.";
+
+            // Convert the current time to PST
+            let pst = new Date(now.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}));
+
+            // Get the current hour in PST
+            let hour = pst.getHours();
+
+            // Check if the current time is between 2 and 4am
+            if (hour >= 2 && hour < 4) {
+                if (!data.features.some(vehicle => vehicle.properties.trip_id)) {
+                    document.getElementById('loading').style.display = 'block';
+                    document.getElementById('loading').innerHTML = "No vehicles currently running, please back later.";
+                }
             }
         })
         .catch(error => {
