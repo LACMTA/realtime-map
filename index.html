@@ -148,7 +148,13 @@
     
     // Get the current time
     const now = new Date();
-    
+
+    // Convert the current time to PST
+    let pst = new Date(now.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}));
+
+    // Get the current hour in PST
+    let hour = pst.getHours();
+
     // map setup
     
       let map = new maplibregl.Map({
@@ -217,13 +223,19 @@
             let newVehicleIds = new Set(data.features.map(vehicle => vehicle.properties.vehicle_id));
 
             // Remove markers that are not in the new data
-            for (let vehicle_id in markers) {
-                if (!newVehicleIds.has(vehicle_id)) {
-                    // The marker is not in the new data, remove it from the map
-                    markers[vehicle_id].remove();
-    
-                    // Delete the marker from the markers object
-                    delete markers[vehicle_id];
+            // Check if data is blank
+            if (data.features.length > 0) {
+                let newVehicleIds = new Set(data.features.map(vehicle => vehicle.properties.vehicle_id));
+
+                // Remove markers that are not in the new data
+                for (let vehicle_id in markers) {
+                    if (!newVehicleIds.has(vehicle_id)) {
+                        // The marker is not in the new data, remove it from the map
+                        markers[vehicle_id].remove();
+
+                        // Delete the marker from the markers object
+                        delete markers[vehicle_id];
+                    }
                 }
             }
             // For each vehicle in the data
