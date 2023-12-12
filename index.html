@@ -280,12 +280,11 @@
 
                     animateMarker();                    // Assuming `vehicle.properties.timestamp` contains the new timestamp
                     let newTimestamp = vehicle.properties.timestamp;
-    
+                    markers[vehicle.properties.vehicle_id].timestamp = newTimestamp;
                     // Create a new popup
     
                     // Assuming `popups[vehicle.properties.vehicle_id]` is the existing popup for the vehicle
                     let popup = markers[vehicle.properties.vehicle_id].getPopup();
-    
                     if (popup) {
                         // Assuming `route_code` and `timestamp` are available
                         // Update the content of the popup
@@ -381,8 +380,7 @@
                 type: 'FeatureCollection',
                 features: features
             });
-            // Hide the loading div after the markers are loaded
-            document.getElementById('loading').style.display = 'none';
+
             // Get the current time
             const now = new Date();
     
@@ -398,7 +396,8 @@
 
             // Get the current hour in PST
             let hour = pst.getHours();
-
+            // Hide the loading div after the markers are loaded
+            document.getElementById('loading').style.display = 'none';
             // Check if the current time is between 2 and 4am
             if (hour >= 2 && hour < 4) {
                 if (!data.features.some(vehicle => vehicle.properties.trip_id)) {
