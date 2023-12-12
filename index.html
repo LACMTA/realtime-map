@@ -212,11 +212,12 @@
     let popups = {};
     let brtUrl = 'https://api.metro.net/LACMTA/vehicle_positions/route_code/901%2C910?format=geojson'
 
-    window.setInterval(function () {
-        fetch(apiUrl)
+
+// Extract the fetch logic into a separate function
+function fetchData() {
+    return fetch(apiUrl)
         .then(response => response.json())
         .then(data => {
-            // If data is returned, clear the timer
             clearTimeout(timer);
             let features = [];
             // Create a set of the vehicle_ids in the new data
@@ -396,8 +397,7 @@
 
             // Get the current hour in PST
             let hour = pst.getHours();
-            // Hide the loading div after the markers are loaded
-            document.getElementById('loading').style.display = 'none';
+
             // Check if the current time is between 2 and 4am
             if (hour >= 2 && hour < 4) {
                 if (!data.features.some(vehicle => vehicle.properties.trip_id)) {
@@ -405,111 +405,125 @@
                     document.getElementById('loading').innerHTML = "No vehicles currently running, please back later.";
                 }
             }
+            if (Object.keys(markers).length > 1) {
+                // Call a function to hide the loading div
+                hideLoadingDiv();
+            }
         })
         .catch(error => {
             console.error(error);
             document.getElementById('loading').style.display = 'block';
             document.getElementById('loading').innerHTML = "Error loading data. Please check your connection or try again later.";
         });
-    
-    }, 9000);
-    
-    // Call the updateArrow function whenever the map moves
-    let features = [];
-        map.addSource('openmaptiles', {
-          url: `https://api.maptiler.com/tiles/v3/tiles.json?key=${MAPTILER_KEY}`,
-          type: 'vector',
-      });
-    
-    
-          map.addLayer({
-            'id': 'vehicles',
-            'type': 'symbol',
-            'source': 'vehicles',
-            'layout': {
-                'icon-image': 'rail',
-                'icon-allow-overlap': true,
-                'icon-ignore-placement': true
-            }
-        });
-          map.addLayer(
-              {
-                  'id': '3d-buildings',
-                  'source': 'openmaptiles',
-                  'source-layer': 'building',
-                  'type': 'fill-extrusion',
-                  'minzoom': 14,
-                  'paint': {
-                      'fill-extrusion-color': [
-                          'interpolate',
-                          ['linear'],
-                          ['get', 'render_height'],0, 'lightgray', 200, 'hsl(38, 28%, 77%)', 400, 'hsl(38, 28%, 77%)'
-                      ],
-                      'fill-extrusion-opacity': 0.5,
-                      'fill-extrusion-height': [
-                          'interpolate',
-                          ['linear'],
-                          ['zoom'],
-                          15,
-                          0,
-                          16,
-                          ['get', 'render_height']
-                      ],
-                      'fill-extrusion-base': ['case',
-                          ['>=', ['get', 'zoom'], 16],
-                          ['get', 'render_min_height'], 0
-                      ]
-                  }
-              },
-              labelLayerId
-          );
-    
-        });
-    
-        // Add navigation controls to the top-left corner of the map
-    map.addControl(new maplibregl.NavigationControl(), 'top-left');
-        // Create a home button
-    class HomeControl {
-        onAdd(map) {
-            this.map = map;
-            this.container = document.createElement('div');
-            this.container.className = 'maplibregl-ctrl';
-            const button = document.createElement('button');
-            button.className = 'maplibregl-ctrl-icon home-icon'; // Add 'home-icon' class
-            button.innerHTML = '<i class="fas fa-home"></i>';
-            button.addEventListener('click', () => {
-                this.map.flyTo({
-                    center: [-118.25133692966446, 34.05295151499077],
-                    zoom: 9,
-                    pitch: 20,
-                    bearing: 0
-                });
+}
+
+// Fetch data when the page loads
+fetchData();
+
+// Fetch data every 9000 milliseconds
+window.setInterval(fetchData, 9000);
+
+// Define a function to hide the loading div
+function hideLoadingDiv() {
+    document.getElementById('loading').style.display = 'none';
+}
+
+// Call the updateArrow function whenever the map moves
+let features = [];
+    map.addSource('openmaptiles', {
+        url: `https://api.maptiler.com/tiles/v3/tiles.json?key=${MAPTILER_KEY}`,
+        type: 'vector',
+    });
+
+
+        map.addLayer({
+        'id': 'vehicles',
+        'type': 'symbol',
+        'source': 'vehicles',
+        'layout': {
+            'icon-image': 'rail',
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true
+        }
+    });
+        map.addLayer(
+            {
+                'id': '3d-buildings',
+                'source': 'openmaptiles',
+                'source-layer': 'building',
+                'type': 'fill-extrusion',
+                'minzoom': 14,
+                'paint': {
+                    'fill-extrusion-color': [
+                        'interpolate',
+                        ['linear'],
+                        ['get', 'render_height'],0, 'lightgray', 200, 'hsl(38, 28%, 77%)', 400, 'hsl(38, 28%, 77%)'
+                    ],
+                    'fill-extrusion-opacity': 0.5,
+                    'fill-extrusion-height': [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        15,
+                        0,
+                        16,
+                        ['get', 'render_height']
+                    ],
+                    'fill-extrusion-base': ['case',
+                        ['>=', ['get', 'zoom'], 16],
+                        ['get', 'render_min_height'], 0
+                    ]
+                }
+            },
+            labelLayerId
+        );
+
+    });
+
+    // Add navigation controls to the top-left corner of the map
+map.addControl(new maplibregl.NavigationControl(), 'top-left');
+    // Create a home button
+class HomeControl {
+    onAdd(map) {
+        this.map = map;
+        this.container = document.createElement('div');
+        this.container.className = 'maplibregl-ctrl';
+        const button = document.createElement('button');
+        button.className = 'maplibregl-ctrl-icon home-icon'; // Add 'home-icon' class
+        button.innerHTML = '<i class="fas fa-home"></i>';
+        button.addEventListener('click', () => {
+            this.map.flyTo({
+                center: [-118.25133692966446, 34.05295151499077],
+                zoom: 9,
+                pitch: 20,
+                bearing: 0
             });
-            this.container.appendChild(button);
-            return this.container;
-        }
-    
-        onRemove() {
-            this.container.parentNode.removeChild(this.container);
-            this.map = undefined;
-        }
+        });
+        this.container.appendChild(button);
+        return this.container;
     }
-    
-    window.onload = function() {
-        const legend = document.getElementById('legend');
-        const toggleLegend = document.getElementById('toggle-legend');
-    
-        if (legend && toggleLegend) {
-            legend.addEventListener('click', function() {
-                this.classList.toggle('hidden');
-    
-                // Change the icon based on the visibility
-                toggleLegend.innerHTML = this.classList.contains('hidden') ? '<i class="fas fa-chevron-right"></i>' : '<i class="fas fa-chevron-left"></i>';
-            });
-        } else {
-            console.error('Element not found');
-        }
-    };
+
+    onRemove() {
+        this.container.parentNode.removeChild(this.container);
+        this.map = undefined;
+    }
+}
+
+window.onload = function() {
+    const legend = document.getElementById('legend');
+    const toggleLegend = document.getElementById('toggle-legend');
+
+    if (legend && toggleLegend) {
+        legend.addEventListener('click', function() {
+            this.classList.toggle('hidden');
+
+            // Change the icon based on the visibility
+            toggleLegend.innerHTML = this.classList.contains('hidden') ? '<i class="fas fa-chevron-right"></i>' : '<i class="fas fa-chevron-left"></i>';
+        });
+    } else {
+        console.error('Element not found');
+    }
+};
     
     </script>
     <div id="update-time"></div>
