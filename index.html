@@ -4,8 +4,8 @@
   <title>Metro - Rail Time Map</title>
 <meta property="og:description" content="Real-time rail vehicle locations for Metro." />  <meta charset='utf-8'>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.css' />
-  <script src='https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.js'></script>
+  <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css' />
+  <script src='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js'></script>
 
   <script src="https://unpkg.com/mapbox-gl-esri-sources@0.0.7/dist/mapbox-gl-esri-sources.js"></script>
   <!-- Include the Font Awesome library -->
@@ -140,7 +140,7 @@
       const basemapEnum = "65aff2873118478482ec3dec199e9058";
       let timer = setTimeout(() => {
         document.getElementById('loading').innerHTML = "Error loading data or no vehicles currently running. Please check your connection or try again later.";
-    }, 15000); // 15 seconds
+    }, 25000); // 25 seconds
     
     
     // Create a map of vehicle IDs to markers
