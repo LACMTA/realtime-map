@@ -72,7 +72,22 @@
 .dot:nth-child(3) {
     animation-delay: 0.4s;
 }
+@keyframes dot {
+    0%, 20% { opacity: 0; }
+    50%, 100% { opacity: 1; }
+}
 
+.dot1 {
+    animation: dot 1s infinite;
+}
+
+.dot2 {
+    animation: dot 1s 0.33s infinite;
+}
+
+.dot3 {
+    animation: dot 1s 0.66s infinite;
+}
 .beta {
     color: #FF4500; /* Orange text color */
     font-size: 0.8em; /* Smaller font size */
@@ -415,7 +430,10 @@ function fetchData() {
             console.error(error);
             document.getElementById('loading').style.display = 'block';
             if (error instanceof TypeError) {
-                document.getElementById('loading').innerHTML = "We're experiencing technical difficulties with our data. Please try again later.";
+                document.getElementById('loading').innerHTML = "We're experiencing technical difficulties with our data. We're attempting to reload the data. Please wait<span class='dot1'>.</span><span class='dot2'>.</span><span class='dot3'>.</span>";
+                console.error('TypeError caught: ', error);
+                // Retry loading data
+                fetchData();
             } else if (error instanceof SyntaxError) {
                 document.getElementById('loading').innerHTML = "We're currently facing some technical issues. Our team is working on it. Please try again later.";
             } else if (error instanceof ReferenceError) {
