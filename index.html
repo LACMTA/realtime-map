@@ -411,9 +411,18 @@ function fetchData() {
             }
         })
         .catch(error => {
+            console.error('==error==');
             console.error(error);
             document.getElementById('loading').style.display = 'block';
-            document.getElementById('loading').innerHTML = "Error loading data. Please check your connection or try again later.";
+            if (error instanceof TypeError) {
+                document.getElementById('loading').innerHTML = "We're experiencing technical difficulties with our data. Please try again later.";
+            } else if (error instanceof SyntaxError) {
+                document.getElementById('loading').innerHTML = "We're currently facing some technical issues. Our team is working on it. Please try again later.";
+            } else if (error instanceof ReferenceError) {
+                document.getElementById('loading').innerHTML = "We're unable to find some necessary information. Please try again later.";
+            } else {
+                document.getElementById('loading').innerHTML = `We're experiencing unexpected issues: ${error.message}. Our team is looking into it. Please try again later.`;
+            }
         });
 }
 
