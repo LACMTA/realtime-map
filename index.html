@@ -413,13 +413,6 @@ function fetchData() {
             // Get the current hour in PST
             let hour = pst.getHours();
 
-            // Check if the current time is between 2 and 4am
-            if (hour >= 2 && hour < 4) {
-                if (!data.features.some(vehicle => vehicle.properties.trip_id)) {
-                    document.getElementById('loading').style.display = 'block';
-                    document.getElementById('loading').innerHTML = "No vehicles currently running, please back later.";
-                }
-            }
             if (Object.keys(markers).length > 1) {
                 // Call a function to hide the loading div
                 hideLoadingDiv();
