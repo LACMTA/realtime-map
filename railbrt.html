@@ -157,6 +157,8 @@
         document.getElementById('loading').innerHTML = "Sorry, loading timed out: we're currently unable to load data. Please check your connection or try again later.";
     }, 25000); // 25 seconds
     
+    // Declare a global variable to store the route shapes data
+    let routeShapesData;
     
     // Create a map of vehicle IDs to markers
     let markers = {};
@@ -280,11 +282,17 @@ function fetchDataold() {
                     let i = 0;
                     function animateMarker() {
                         if (i < steps) {
-                            // Update the marker's position
-                            markers[vehicle.properties.vehicle_id].setLngLat([
-                                currentCoordinates.lng + i * lngStep,
-                                currentCoordinates.lat + i * latStep
-                            ]);
+                            // Iterate over all routes
+                            routeShapesData.features.forEach((route, index) => {
+                                // Calculate the fraction of the route that the marker should have traveled
+                                let fraction = i / steps;
+
+                                // Interpolate the marker's position along the route
+                                let coordinates = interpolatePosition(route.geometry.coordinates, fraction);
+
+                                // Update the marker's position
+                                markers[index].setLngLat(coordinates);
+                            });
 
                             // Update the rotations of the markers
                             updateMarkerRotations();
@@ -520,24 +528,28 @@ function fetchData() {
                 // Start the animation
                 let i = 0;
                 function animateMarker() {
-                    if (i < steps) {
+                    if (i <= steps) {
+                        // Calculate the progress of the animation
+                        let progress = i / steps;
+                
+                        // Apply an easing function to the progress
+                        // This is a simple ease-in-out function, but you can use any function you like
+                        let easedProgress = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+                
                         // Update the marker's position
                         markers[vehicle.properties.vehicle_id].setLngLat([
-                            currentCoordinates.lng + i * lngStep,
-                            currentCoordinates.lat + i * latStep
+                            currentCoordinates.lng + easedProgress * diffLng,
+                            currentCoordinates.lat + easedProgress * diffLat
                         ]);
-            
+                
                         // Request the next frame of the animation
                         requestAnimationFrame(animateMarker);
                     }
-            
+                
                     i++;
                 }
-
                 animateMarker();
                 }
-
-
                 // Check if vehicle.properties is defined
                 if (vehicle.properties) {
                     // Assuming `vehicle.properties.timestamp` contains the new timestamp
@@ -673,6 +685,29 @@ function fetchData() {
     });
 }
 
+function fetchRouteShapesData() {
+    // Add the new URLs
+    const urls = [
+        'https://api.metro.net/LACMTA_Rail/trip_shapes/all',
+        'https://api.metro.net/LACMTA/trip_shapes/9100209_DEC23',
+        'https://api.metro.net/LACMTA/trip_shapes/9010054_DEC23'
+    ];
+
+    // Fetch data from all URLs
+    return Promise.all(urls.map(url => fetch(url).then(response => response.json())))
+        .then(data => {
+            // Combine the data from all responses
+            routeShapesData = {
+                type: 'FeatureCollection',
+                features: data.map(d => d)
+            };
+        })
+        .catch(error => {
+            // Call a function to handle errors
+            handleError(error);
+        });
+}
+
 
 function handleError(error) {
     console.error('==error==');
@@ -694,7 +729,7 @@ function handleError(error) {
 
 // Fetch data when the page loads
 fetchData();
-
+fetchRouteShapesData();
 // Fetch data every 9000 milliseconds
 window.setInterval(fetchData, 9000);
 //window.setInterval(fetchData, 9000);
