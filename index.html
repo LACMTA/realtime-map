@@ -157,6 +157,8 @@
         document.getElementById('loading').innerHTML = "Sorry, loading timed out: we're currently unable to load data. Please check your connection or try again later.";
     }, 25000); // 25 seconds
     
+    // Declare a global variable to store the route shapes data
+    let routeShapesData;
     
     // Create a map of vehicle IDs to markers
     let markers = {};
@@ -191,7 +193,9 @@
         '804': 'https://lacmta.github.io/metro-iconography/Service_ELine2.svg',
         '806': 'https://lacmta.github.io/metro-iconography/Service_LLine.svg',
         '807': 'https://lacmta.github.io/metro-iconography/Service_KLine.svg',
-        '805': 'https://lacmta.github.io/metro-iconography/Service_DLine.svg',    
+        '805': 'https://lacmta.github.io/metro-iconography/Service_DLine.svg',
+        '901': 'https://lacmta.github.io/metro-iconography/Service_GLine.svg',
+        '910': 'https://lacmta.github.io/metro-iconography/Service_JLine.svg'    
     };
     
     
@@ -229,7 +233,7 @@
 
 
 // Extract the fetch logic into a separate function
-function fetchData() {
+function fetchDataold() {
     return fetch(apiUrl)
         .then(response => response.json())
         .then(data => {
@@ -278,11 +282,17 @@ function fetchData() {
                     let i = 0;
                     function animateMarker() {
                         if (i < steps) {
-                            // Update the marker's position
-                            markers[vehicle.properties.vehicle_id].setLngLat([
-                                currentCoordinates.lng + i * lngStep,
-                                currentCoordinates.lat + i * latStep
-                            ]);
+                            // Iterate over all routes
+                            routeShapesData.features.forEach((route, index) => {
+                                // Calculate the fraction of the route that the marker should have traveled
+                                let fraction = i / steps;
+
+                                // Interpolate the marker's position along the route
+                                let coordinates = interpolatePosition(route.geometry.coordinates, fraction);
+
+                                // Update the marker's position
+                                markers[index].setLngLat(coordinates);
+                            });
 
                             // Update the rotations of the markers
                             updateMarkerRotations();
@@ -290,11 +300,10 @@ function fetchData() {
                             // Request the next frame of the animation
                             requestAnimationFrame(animateMarker);
                         }
-
                         i++;
                     }
-
-                    animateMarker();                    // Assuming `vehicle.properties.timestamp` contains the new timestamp
+                    animateMarker(); 
+                    // Assuming `vehicle.properties.timestamp` contains the new timestamp
                     let newTimestamp = vehicle.properties.timestamp;
                     markers[vehicle.properties.vehicle_id].timestamp = newTimestamp;
                     // Create a new popup
@@ -419,29 +428,311 @@ function fetchData() {
             }
         })
         .catch(error => {
-            console.error('==error==');
-            console.error(error);
-            document.getElementById('loading').style.display = 'block';
-            if (error instanceof TypeError) {
-                document.getElementById('loading').innerHTML = "We're experiencing technical difficulties with our data. We're attempting to reload the data. Please wait<span class='dot1'>.</span><span class='dot2'>.</span><span class='dot3'>.</span>";
-                console.error('TypeError caught: ', error);
-                // Retry loading data
-                fetchData();
-            } else if (error instanceof SyntaxError) {
-                document.getElementById('loading').innerHTML = "We're currently facing some technical issues. Our team is working on it. Please try again later.";
-            } else if (error instanceof ReferenceError) {
-                document.getElementById('loading').innerHTML = "We're unable to find some necessary information. Please try again later.";
-            } else {
-                document.getElementById('loading').innerHTML = `We're experiencing unexpected issues: ${error.message}. Our team is looking into it. Please try again later.`;
-            }
+            handleError(error);
         });
+}
+
+function handleError(error) {
+    if (error instanceof TypeError) {
+        document.getElementById('loading').innerHTML = "We're experiencing technical difficulties with our data. We're attempting to reload the data. Please wait<span class='dot1'>.</span><span class='dot2'>.</span><span class='dot3'>.</span>";
+        console.error('TypeError caught: ', error);
+        // Retry loading data
+        fetchData();
+    } else if (error instanceof SyntaxError) {
+        document.getElementById('loading').innerHTML = "We're currently facing some technical issues. Our team is working on it. Please try again later.";
+    } else if (error instanceof ReferenceError) {
+        document.getElementById('loading').innerHTML = "We're unable to find some necessary information. Please try again later.";
+    } else {
+        document.getElementById('loading').innerHTML = `We're experiencing unexpected issues: ${error.message}. Our team is looking into it. Please try again later.`;
+    }
+}
+
+
+function fetchData() {
+    // Add the new URL
+    const newApiUrl = 'https://api.metro.net/LACMTA/vehicle_positions/route_code/901%2C910?format=geojson';
+
+    // Fetch data from both URLs
+    return Promise.all([
+        fetch(apiUrl).then(response => response.json()),
+        fetch(newApiUrl).then(response => response.json())
+    ])
+    .then(([data1, data2]) => {
+        // Check if data1 has a features property
+        if (!(data1 && data1.features)) {
+            throw new Error('The first response does not have a features property');
+        }
+    
+        // Check if data2 is an object
+        if (typeof data2 !== 'object') {
+            throw new Error('The second response is not an object');
+        }
+    
+        // Combine the features from data1 and all properties of data2
+        const data = {
+            features: [
+                ...data1.features,
+                ...Object.values(data2).flatMap(d => d.features || [])
+            ]
+        };
+
+        clearTimeout(timer);
+        let features = [];
+        // Create a set of the vehicle_ids in the new data
+        let newVehicleIds = new Set(data.features.map(vehicle => vehicle.properties.vehicle_id));
+
+        // Remove markers that are not in the new data
+        // Check if data is blank
+        if (data.features.length > 0) {
+            let newVehicleIds = new Set(data.features.map(vehicle => vehicle.properties.vehicle_id));
+
+            // Remove markers that are not in the new data
+            for (let vehicle_id in markers) {
+                if (!newVehicleIds.has(vehicle_id)) {
+                    // The marker is not in the new data, remove it from the map
+                    markers[vehicle_id].remove();
+
+                    // Delete the marker from the markers object
+                    delete markers[vehicle_id];
+                }
+            }
+        }
+
+    data.features.filter(vehicle => vehicle.properties && vehicle.properties.trip_id).forEach(vehicle => {
+        // If a marker for this vehicle already exists
+        if (markers[vehicle.properties.vehicle_id]) {
+            // Get the current coordinates of the marker
+            let currentCoordinates = markers[vehicle.properties.vehicle_id].getLngLat();
+            
+            // Check if vehicle.geometry and vehicle.geometry.coordinates are defined
+            if (vehicle.geometry && vehicle.geometry.coordinates) {
+                // Calculate the difference in coordinates
+                let diffLng = vehicle.geometry.coordinates[0] - currentCoordinates.lng;
+                let diffLat = vehicle.geometry.coordinates[1] - currentCoordinates.lat;
+                let distance = Math.sqrt(diffLng * diffLng + diffLat * diffLat);
+
+                // Calculate the number of steps
+                let steps = 9000 / 60; // 60 frames per second
+
+                if (distance > 0.001) { // Adjust this value as needed
+                // Calculate the step size
+                let lngStep = diffLng / steps;
+                let latStep = diffLat / steps;
+
+                // Check if vehicle.properties is defined
+                if (vehicle.properties) {
+                    // Update the Heading property of the marker
+                    markers[vehicle.properties.vehicle_id].properties.Heading = vehicle.properties.position_bearing;
+                }
+
+                // Start the animation
+                let i = 0;
+                function animateMarker() {
+                    if (i <= steps) {
+                        // Calculate the progress of the animation
+                        let progress = i / steps;
+                
+                        // Apply an easing function to the progress
+                        // This is a simple ease-in-out function, but you can use any function you like
+                        let easedProgress = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+                
+                        // Update the marker's position
+                        markers[vehicle.properties.vehicle_id].setLngLat([
+                            currentCoordinates.lng + easedProgress * diffLng,
+                            currentCoordinates.lat + easedProgress * diffLat
+                        ]);
+                
+                        // Request the next frame of the animation
+                        requestAnimationFrame(animateMarker);
+                    }
+                
+                    i++;
+                }
+                animateMarker();
+                }
+                // Check if vehicle.properties is defined
+                if (vehicle.properties) {
+                    // Assuming `vehicle.properties.timestamp` contains the new timestamp
+                    let newTimestamp = vehicle.properties.timestamp;
+                    markers[vehicle.properties.vehicle_id].timestamp = newTimestamp;
+                }
+
+                // Create a new popup
+
+                // Assuming `popups[vehicle.properties.vehicle_id]` is the existing popup for the vehicle
+                let popup = markers[vehicle.properties.vehicle_id].getPopup();
+                if (popup) {
+                    // Assuming `route_code` and `timestamp` are available
+                    // Update the content of the popup
+                    popup.setHTML(`
+                        <div style="display: flex; align-items: center;justify-content:center;">
+                            <img src="${routeIcons[markers[vehicle.properties.vehicle_id].route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
+                            <span><b>Line</b></span>
+                        </div>                        
+                        Data from: ${new Date(markers[vehicle.properties.vehicle_id].timestamp * 1000).toLocaleTimeString()}
+                    `);        
+                }
+            }
+        }
+        else {
+                // Otherwise, create a new marker
+                const wrapper = document.createElement('div');
+                wrapper.className = 'wrapper';
+                const el = document.createElement('div');
+                el.className = 'marker';
+
+                // Set the icon URL
+                const iconUrl = 'https://raw.githubusercontent.com/LACMTA/metro-iconography/main/Arrow.svg';
+                el.style.background = `url(${iconUrl}) no-repeat center/cover`;
+
+                // Rotate the icon based on the heading
+                const heading = vehicle.properties.position_bearing;
+                wrapper.style.transform = `rotateZ(${heading}deg)`;
+
+                // Force a re-render of the map
+                map.triggerRepaint();
+
+                el.style.backgroundRepeat = 'no-repeat';
+                el.style.backgroundSize = 'cover';
+                el.style.backgroundPosition = 'center';
+                el.style.backgroundColor = 'white';
+                el.style.borderRadius = '50%';
+                el.style.cursor = 'pointer';
+
+                // Get the current zoom level
+                const zoom = map.getZoom();
+
+                // Calculate the size of the icon based on the zoom level
+                const size = zoom >= 15 ? 40 : 40 * 0.5; // Increased size to 40px
+
+                el.style.width = `${size}px`;
+                el.style.height = `${size}px`;
+
+                // Add the marker element to the wrapper
+                wrapper.appendChild(el);
+
+                // Create a new popup
+                const popup = new maplibregl.Popup()
+                .setHTML(`
+                <div style="display: flex; align-items: center; justify-content: center;">
+                    <img src="${routeIcons[vehicle.properties.route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
+                    <span><b>Line</b></span>
+                </div>
+                Data from ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}`);
+
+                // Create the marker and add it to the map
+                const marker = new maplibregl.Marker({element: wrapper})
+                    .setLngLat(vehicle.geometry.coordinates)
+                    .setPopup(popup) // Set the popup
+                    .addTo(map);
+
+                // Store the bearing in the marker object
+                marker.bearing = vehicle.properties.position_bearing;
+                marker.properties = {
+                    vehicle_id: vehicle.properties.vehicle_id,
+                    Heading: vehicle.properties.position_bearing
+                };
+                marker.timestamp = vehicle.properties.timestamp;
+                marker.route_code = vehicle.properties.route_code;
+                // Add the marker to the map of markers
+                markers[vehicle.properties.vehicle_id] = marker;
+                updateMarkerRotations();
+                // Update features inside the map function
+                const feature = {
+                    type: 'Feature',
+                    geometry: {
+                        type: 'Point',
+                        coordinates: [vehicle.geometry[0], vehicle.geometry[1]]
+                    },
+                    properties: {
+                        vehicle_id: vehicle.properties.vehicle_id,
+                        Heading: vehicle.properties.position_bearing
+                        
+                    }
+                };
+                features.push(feature);
+                }
+                });
+        map.getSource('vehicles').setData({
+            type: 'FeatureCollection',
+            features: features
+        });
+
+        // Get the current time
+        const now = new Date();
+
+        // Get the update time div
+        const updateTimeDiv = document.getElementById('update-time');
+
+        // Update the content of the update time div
+        updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
+        updateTimeDiv.style.fontSize = '12px';
+
+        // Convert the current time to PST
+        let pst = new Date(now.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}));
+
+        // Get the current hour in PST
+        let hour = pst.getHours();
+
+        if (Object.keys(markers).length > 1) {
+            // Call a function to hide the loading div
+            hideLoadingDiv();
+        }
+    })
+    .catch(error => {
+        // Call a function to handle errors
+        handleError(error);
+    });
+}
+
+function fetchRouteShapesData() {
+    // Add the new URLs
+    const urls = [
+        'https://api.metro.net/LACMTA_Rail/trip_shapes/all',
+        'https://api.metro.net/LACMTA/trip_shapes/9100209_DEC23',
+        'https://api.metro.net/LACMTA/trip_shapes/9010054_DEC23'
+    ];
+
+    // Fetch data from all URLs
+    return Promise.all(urls.map(url => fetch(url).then(response => response.json())))
+        .then(data => {
+            // Combine the data from all responses
+            routeShapesData = {
+                type: 'FeatureCollection',
+                features: data.map(d => d)
+            };
+        })
+        .catch(error => {
+            // Call a function to handle errors
+            handleError(error);
+        });
+}
+
+
+function handleError(error) {
+    console.error('==error==');
+    console.error(error);
+    document.getElementById('loading').style.display = 'block';
+    if (error instanceof TypeError) {
+        document.getElementById('loading').innerHTML = "We're experiencing technical difficulties with our data. We're attempting to reload the data. Please wait<span class='dot1'>.</span><span class='dot2'>.</span><span class='dot3'>.</span>";
+        console.error('TypeError caught: ', error);
+        // Retry loading data
+        fetchData();
+    } else if (error instanceof SyntaxError) {
+        document.getElementById('loading').innerHTML = "We're currently facing some technical issues. Our team is working on it. Please try again later.";
+    } else if (error instanceof ReferenceError) {
+        document.getElementById('loading').innerHTML = "We're unable to find some necessary information. Please try again later.";
+    } else {
+        document.getElementById('loading').innerHTML = `We're experiencing unexpected issues: ${error.message}. Our team is looking into it. Please try again later.`;
+    }
 }
 
 // Fetch data when the page loads
 fetchData();
-
+fetchRouteShapesData();
 // Fetch data every 9000 milliseconds
 window.setInterval(fetchData, 9000);
+//window.setInterval(fetchData, 9000);
 
 // Define a function to hide the loading div
 function hideLoadingDiv() {
@@ -583,6 +874,16 @@ window.onload = function() {
         <span style="background-color: #E56DB1; display: inline-block; width: 10px; height: 4px;"></span>
         <img src="https://lacmta.github.io/metro-iconography/Service_KLine.svg" alt="K" width="20" height="20">
         <span style="background-color: #E56DB1; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> K Line
+    </div>
+    <div style="display: flex; align-items: center;">
+        <span style="background-color: #ADB8BF; color: #000000;display: inline-block; width: 10px; height: 4px;"></span>
+        <img src="https://lacmta.github.io/metro-iconography/Service_JLine.svg" alt="J" width="20" height="20">
+        <span style="background-color: #ADB8BF; color: #000000;display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> J Line
+    </div>
+    <div style="display: flex; align-items: center;">
+        <span style="background-color: #FC4C02; display: inline-block; width: 10px; height: 4px;"></span>
+        <img src="https://lacmta.github.io/metro-iconography/Service_GLine.svg" alt="G" width="20" height="20">
+        <span style="background-color: #FC4C02; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> G Line
     </div>
     <div style="display: flex; align-items: center;">
     </div>
