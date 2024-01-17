@@ -204,7 +204,23 @@
       map.on('load', () => {
           // Insert the layer beneath any symbol layer.
           const layers = map.getStyle().layers;
-    
+          map.addSource('bus', {
+            'type': 'vector',
+            'tiles': ['https://lacmta.github.io/vectortiles/bus/{z}/{x}/{y}.pbf']
+        });
+ 
+
+        map.addLayer({
+            'id': 'bus',
+            'type': 'line',
+            'source': 'bus',
+            'source-layer': 'flattened_bus', // This should be the name of the layer in your vector tiles
+            'layout': {},
+            'paint': {
+                'line-color': '#E16710',
+                'line-width': 2
+            }
+        });
           let labelLayerId;
           for (let i = 0; i < layers.length; i++) {
               if (layers[i].type === 'symbol' && layers[i].layout['text-field']) {
@@ -221,12 +237,15 @@
           type: 'raster',
           source: 'imagery-source'
       })
+
+      
       let apiUrl = 'https://api.metro.net/LACMTA/vehicle_positions?format=geojson'
     
           map.addSource('vehicles', {
             type: 'geojson',
             data: apiUrl,
         });
+
     // Declare and initialize the popups object
     let popups = {};
 
@@ -404,7 +423,39 @@ function fetchDataold() {
                 type: 'FeatureCollection',
                 features: features
             });
+                map.on('load', function () {
+                    map.addSource('bus', {
+                        'type': 'vector',
+                        'tiles': ['https://lacmta.github.io/vectortiles/bus/{z}/{x}/{y}.pbf']
+                    });
+                    map.on('sourcedata', function (event) {
+            if (event.sourceId === 'bus' && event.isSourceLoaded) {
+                const sourceCache = map.style.sourceCaches['bus'];
+                const sourceLayerNames = new Set();
 
+                for (let t in sourceCache._tiles) {
+                    const tile = sourceCache._tiles[t];
+                    for (let layer in tile.virtualTile.sourceLayers) {
+                        sourceLayerNames.add(layer);
+                    }
+                }
+
+                console.log(Array.from(sourceLayerNames));
+            }
+        });
+
+                    map.addLayer({
+                        'id': 'bus',
+                        'type': 'line',
+                        'source': 'bus',
+                        'source-layer': 'flattened_bus', // This should be the name of the layer in your vector tiles
+                        'layout': {},
+                        'paint': {
+                            'line-color': '#888',
+                            'line-width': 1
+                        }
+                    });
+                });
             // Get the current time
             const now = new Date();
     
@@ -446,6 +497,7 @@ function handleError(error) {
     }
 }
 
+const worker = new Worker('worker.js');
 
 function fetchData() {
     // Add the new URL
@@ -676,29 +728,201 @@ function fetchData() {
     });
 }
 
-function fetchRouteShapesData() {
-    // Add the new URLs
-    const urls = [
-        'https://api.metro.net/LACMTA_Rail/trip_shapes/all',
-        'https://api.metro.net/LACMTA/trip_shapes/9100209_DEC23',
-        'https://api.metro.net/LACMTA/trip_shapes/9010054_DEC23'
-    ];
 
-    // Fetch data from all URLs
-    return Promise.all(urls.map(url => fetch(url).then(response => response.json())))
-        .then(data => {
-            // Combine the data from all responses
-            routeShapesData = {
-                type: 'FeatureCollection',
-                features: data.map(d => d)
-            };
-        })
-        .catch(error => {
-            // Call a function to handle errors
-            handleError(error);
-        });
+//////////////////////////
+function fetchData() {
+    return Promise.all([
+        fetch(apiUrl).then(response => response.json()),
+    ])
+    .then(([data1]) => {
+        if (!data1) {
+            throw new Error('The first response does not have a features property');
+        }
+    
+        const data = {
+            features: [
+                ...data1.features
+            ]
+        };
+
+        clearTimeout(timer);
+        let features = [];
+        let newVehicleIds = new Set(data.features.map(vehicle => vehicle.properties.vehicle_id));
+
+        removeOldMarkers(newVehicleIds, data);
+        processVehicleData(data, features);
+        updateMap(features);
+        updateUI();
+    })
+    .catch(error => {
+        handleError(error);
+    });
 }
 
+function removeOldMarkers(newVehicleIds, data) {
+    if (data.features.length > 0) {
+        for (let vehicle_id in markers) {
+            if (!newVehicleIds.has(vehicle_id)) {
+                markers[vehicle_id].remove();
+                delete markers[vehicle_id];
+            }
+        }
+    }
+}
+
+function processVehicleData(data, features) {
+    data.features.filter(vehicle => vehicle.properties && vehicle.properties.trip_id).forEach(vehicle => {
+        if (markers[vehicle.properties.vehicle_id]) {
+            updateExistingMarker(vehicle);
+        } else {
+            createNewMarker(vehicle, features);
+        }
+    });
+}
+
+function updateExistingMarker(vehicle) {
+    let currentCoordinates = markers[vehicle.properties.vehicle_id].getLngLat();
+    
+    if (vehicle.geometry && vehicle.geometry.coordinates) {
+        let diffLng = vehicle.geometry.coordinates[0] - currentCoordinates.lng;
+        let diffLat = vehicle.geometry.coordinates[1] - currentCoordinates.lat;
+        let distance = Math.sqrt(diffLng * diffLng + diffLat * diffLat);
+
+        let steps = 9000 / 60; // 60 frames per second
+
+        if (distance > 0.001) { // Adjust this value as needed
+            let lngStep = diffLng / steps;
+            let latStep = diffLat / steps;
+
+            if (vehicle.properties) {
+                markers[vehicle.properties.vehicle_id].properties.Heading = vehicle.properties.position_bearing;
+            }
+
+            let i = 0;
+            function animateMarker() {
+                if (i <= steps) {
+                    let progress = i / steps;
+                    let easedProgress = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+            
+                    markers[vehicle.properties.vehicle_id].setLngLat([
+                        currentCoordinates.lng + easedProgress * diffLng,
+                        currentCoordinates.lat + easedProgress * diffLat
+                    ]);
+            
+                    requestAnimationFrame(animateMarker);
+                }
+            
+                i++;
+            }
+            animateMarker();
+        }
+
+        if (vehicle.properties) {
+            let newTimestamp = vehicle.properties.timestamp;
+            markers[vehicle.properties.vehicle_id].timestamp = newTimestamp;
+        }
+
+        let popup = markers[vehicle.properties.vehicle_id].getPopup();
+        if (popup) {
+            popup.setHTML(`
+                <div style="display: flex; align-items: center;justify-content:center;">
+                    <img src="${routeIcons[markers[vehicle.properties.vehicle_id].route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
+                    <span><b>Line</b></span>
+                </div>                        
+                Data from: ${new Date(markers[vehicle.properties.vehicle_id].timestamp * 1000).toLocaleTimeString()}
+            `);        
+        }
+    }
+}
+
+function createNewMarker(vehicle, features) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'wrapper';
+    const el = document.createElement('div');
+    el.className = 'marker';
+
+    const iconUrl = 'https://raw.githubusercontent.com/LACMTA/metro-iconography/main/Arrow.svg';
+    el.style.background = `url(${iconUrl}) no-repeat center/cover`;
+
+    const heading = vehicle.properties.position_bearing;
+    wrapper.style.transform = `rotateZ(${heading}deg)`;
+
+    map.triggerRepaint();
+
+    el.style.backgroundRepeat = 'no-repeat';
+    el.style.backgroundSize = 'cover';
+    el.style.backgroundPosition = 'center';
+    el.style.backgroundColor = 'white';
+    el.style.borderRadius = '50%';
+    el.style.cursor = 'pointer';
+
+    const zoom = map.getZoom();
+    const size = zoom >= 15 ? 40 : 40 * 0.5; // Increased size to 40px
+
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+
+    wrapper.appendChild(el);
+
+    const popup = new maplibregl.Popup()
+    .setHTML(`
+    <div style="display: flex; align-items: center; justify-content: center;">
+        <img src="${routeIcons[vehicle.properties.route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
+        <span><b>Line</b></span>
+    </div>
+    Data from ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}`);
+
+    const marker = new maplibregl.Marker({element: wrapper})
+        .setLngLat(vehicle.geometry.coordinates)
+        .setPopup(popup) // Set the popup
+        .addTo(map);
+
+    marker.bearing = vehicle.properties.position_bearing;
+    marker.properties = {
+        vehicle_id: vehicle.properties.vehicle_id,
+        Heading: vehicle.properties.position_bearing
+    };
+    marker.timestamp = vehicle.properties.timestamp;
+    marker.route_code = vehicle.properties.route_code;
+
+    markers[vehicle.properties.vehicle_id] = marker;
+    updateMarkerRotations();
+
+    const feature = {
+        type: 'Feature',
+        geometry: {
+            type: 'Point',
+            coordinates: [vehicle.geometry[0], vehicle.geometry[1]]
+        },
+        properties: {
+            vehicle_id: vehicle.properties.vehicle_id,
+            Heading: vehicle.properties.position_bearing
+            
+        }
+    };
+    features.push(feature);
+}
+
+function updateMap(features) {
+    map.getSource('vehicles').setData({
+        type: 'FeatureCollection',
+        features: features
+    });
+}
+
+function updateUI() {
+    const now = new Date();
+    const updateTimeDiv = document.getElementById('update-time');
+    updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
+    updateTimeDiv.style.fontSize = '12px';
+
+    let pst = new Date(now.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}));
+    let hour = pst.getHours();
+
+    if (Object.keys(markers).length > 1) {
+        hideLoadingDiv();
+    }
+}
 
 function handleError(error) {
     console.error('==error==');
@@ -720,7 +944,6 @@ function handleError(error) {
 
 // Fetch data when the page loads
 fetchData();
-fetchRouteShapesData();
 // Fetch data every 9000 milliseconds
 window.setInterval(fetchData, 9000);
 //window.setInterval(fetchData, 9000);
@@ -729,6 +952,7 @@ window.setInterval(fetchData, 9000);
 function hideLoadingDiv() {
     document.getElementById('loading').style.display = 'none';
 }
+
 
 // Call the updateArrow function whenever the map moves
 let features = [];
