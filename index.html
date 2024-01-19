@@ -134,11 +134,16 @@
         background-color: white;
         padding: 5px;
         border-radius: 3px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
         z-index: 1; /* Ensure it's above other map elements */
     }
         .issues{
         font-size: 12px;
     }
+
 
     </style>
 </head>
@@ -221,7 +226,7 @@
           type: 'raster',
           source: 'imagery-source'
       })
-      let apiUrl = 'https://api.metro.net/LACMTA_Rail/vehicle_positions?format=geojson'
+        let apiUrl = `https://api.metro.net/LACMTA_Rail/vehicle_positions?format=geojson&nocache=${new Date().getTime()}`;
     
           map.addSource('vehicles', {
             type: 'geojson',
@@ -233,204 +238,6 @@
 
 
 // Extract the fetch logic into a separate function
-function fetchDataold() {
-    return fetch(apiUrl)
-        .then(response => response.json())
-        .then(data => {
-            clearTimeout(timer);
-            let features = [];
-            // Create a set of the vehicle_ids in the new data
-            let newVehicleIds = new Set(data.features.map(vehicle => vehicle.properties.vehicle_id));
-
-            // Remove markers that are not in the new data
-            // Check if data is blank
-            if (data.features.length > 0) {
-                let newVehicleIds = new Set(data.features.map(vehicle => vehicle.properties.vehicle_id));
-
-                // Remove markers that are not in the new data
-                for (let vehicle_id in markers) {
-                    if (!newVehicleIds.has(vehicle_id)) {
-                        // The marker is not in the new data, remove it from the map
-                        markers[vehicle_id].remove();
-
-                        // Delete the marker from the markers object
-                        delete markers[vehicle_id];
-                    }
-                }
-            }
-            // For each vehicle in the data
-            data.features.filter(vehicle => vehicle.properties.trip_id).forEach(vehicle => {
-                // If a marker for this vehicle already exists
-                if (markers[vehicle.properties.vehicle_id]) {
-                    // Get the current coordinates of the marker
-                    let currentCoordinates = markers[vehicle.properties.vehicle_id].getLngLat();
-                    
-                    // Calculate the difference in coordinates
-                    let diffLng = vehicle.geometry.coordinates[0] - currentCoordinates.lng;
-                    let diffLat = vehicle.geometry.coordinates[1] - currentCoordinates.lat;
-    
-                    // Calculate the number of steps
-                    let steps = 9000 / 60; // 60 frames per second
-    
-                    // Calculate the step size
-                    let lngStep = diffLng / steps;
-                    let latStep = diffLat / steps;
-                    // Update the Heading property of the marker
-                    markers[vehicle.properties.vehicle_id].properties.Heading = vehicle.properties.position_bearing;
-    
-                    // Start the animation
-                    let i = 0;
-                    function animateMarker() {
-                        if (i < steps) {
-                            // Iterate over all routes
-                            routeShapesData.features.forEach((route, index) => {
-                                // Calculate the fraction of the route that the marker should have traveled
-                                let fraction = i / steps;
-
-                                // Interpolate the marker's position along the route
-                                let coordinates = interpolatePosition(route.geometry.coordinates, fraction);
-
-                                // Update the marker's position
-                                markers[index].setLngLat(coordinates);
-                            });
-
-                            // Update the rotations of the markers
-                            updateMarkerRotations();
-                            
-                            // Request the next frame of the animation
-                            requestAnimationFrame(animateMarker);
-                        }
-                        i++;
-                    }
-                    animateMarker(); 
-                    // Assuming `vehicle.properties.timestamp` contains the new timestamp
-                    let newTimestamp = vehicle.properties.timestamp;
-                    markers[vehicle.properties.vehicle_id].timestamp = newTimestamp;
-                    // Create a new popup
-    
-                    // Assuming `popups[vehicle.properties.vehicle_id]` is the existing popup for the vehicle
-                    let popup = markers[vehicle.properties.vehicle_id].getPopup();
-                    if (popup) {
-                        // Assuming `route_code` and `timestamp` are available
-                        // Update the content of the popup
-                        popup.setHTML(`
-                            <div style="display: flex; align-items: center;justify-content:center;">
-                                <img src="${routeIcons[markers[vehicle.properties.vehicle_id].route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
-                                <span><b>Line</b></span>
-                            </div>                        
-                            Data from: ${new Date(markers[vehicle.properties.vehicle_id].timestamp * 1000).toLocaleTimeString()}
-                        `);        
-                    }
-                }
-                else {
-                    // Otherwise, create a new marker
-                    const wrapper = document.createElement('div');
-                    wrapper.className = 'wrapper';
-                    const el = document.createElement('div');
-                    el.className = 'marker';
-    
-                    // Set the icon URL
-                    const iconUrl = 'https://raw.githubusercontent.com/LACMTA/metro-iconography/main/Arrow.svg';
-                    el.style.background = `url(${iconUrl}) no-repeat center/cover`;
-    
-                    // Rotate the icon based on the heading
-                    const heading = vehicle.properties.position_bearing;
-                    wrapper.style.transform = `rotateZ(${heading}deg)`;
-    
-                    // Force a re-render of the map
-                    map.triggerRepaint();
-    
-                    el.style.backgroundRepeat = 'no-repeat';
-                    el.style.backgroundSize = 'cover';
-                    el.style.backgroundPosition = 'center';
-                    el.style.backgroundColor = 'white';
-                    el.style.borderRadius = '50%';
-                    el.style.cursor = 'pointer';
-    
-                    // Get the current zoom level
-                    const zoom = map.getZoom();
-    
-                    // Calculate the size of the icon based on the zoom level
-                    const size = zoom >= 15 ? 40 : 40 * 0.5; // Increased size to 40px
-    
-                    el.style.width = `${size}px`;
-                    el.style.height = `${size}px`;
-    
-                    // Add the marker element to the wrapper
-                    wrapper.appendChild(el);
-    
-                    // Create a new popup
-                    const popup = new maplibregl.Popup()
-                    .setHTML(`
-                    <div style="display: flex; align-items: center; justify-content: center;">
-                        <img src="${routeIcons[vehicle.properties.route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
-                        <span><b>Line</b></span>
-                    </div>
-                    Data from ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}`);
-    
-                    // Create the marker and add it to the map
-                    const marker = new maplibregl.Marker({element: wrapper})
-                        .setLngLat(vehicle.geometry.coordinates)
-                        .setPopup(popup) // Set the popup
-                        .addTo(map);
-    
-                    // Store the bearing in the marker object
-                    marker.bearing = vehicle.properties.position_bearing;
-                    marker.properties = {
-                        vehicle_id: vehicle.properties.vehicle_id,
-                        Heading: vehicle.properties.position_bearing
-                    };
-                    marker.timestamp = vehicle.properties.timestamp;
-                    marker.route_code = vehicle.properties.route_code;
-                    // Add the marker to the map of markers
-                    markers[vehicle.properties.vehicle_id] = marker;
-                    updateMarkerRotations();
-                    // Update features inside the map function
-                    const feature = {
-                        type: 'Feature',
-                        geometry: {
-                            type: 'Point',
-                            coordinates: [vehicle.geometry[0], vehicle.geometry[1]]
-                        },
-                        properties: {
-                            vehicle_id: vehicle.properties.vehicle_id,
-                            Heading: vehicle.properties.position_bearing
-                            
-                        }
-                    };
-                    features.push(feature);
-                    }
-                    });
-            map.getSource('vehicles').setData({
-                type: 'FeatureCollection',
-                features: features
-            });
-
-            // Get the current time
-            const now = new Date();
-    
-            // Get the update time div
-            const updateTimeDiv = document.getElementById('update-time');
-    
-            // Update the content of the update time div
-            updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
-            updateTimeDiv.style.fontSize = '12px';
-
-            // Convert the current time to PST
-            let pst = new Date(now.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}));
-
-            // Get the current hour in PST
-            let hour = pst.getHours();
-
-            if (Object.keys(markers).length > 1) {
-                // Call a function to hide the loading div
-                hideLoadingDiv();
-            }
-        })
-        .catch(error => {
-            handleError(error);
-        });
-}
 
 function handleError(error) {
     if (error instanceof TypeError) {
@@ -450,8 +257,7 @@ function handleError(error) {
 
 function fetchData() {
     // Add the new URL
-    const newApiUrl = 'https://api.metro.net/LACMTA/vehicle_positions/route_code/901%2C910?format=geojson';
-
+    const newApiUrl = `https://api.metro.net/LACMTA/vehicle_positions/route_code/901%2C910?format=geojson&nocache=${new Date().getTime()}`;
     // Fetch data from both URLs
     return Promise.all([
         fetch(apiUrl).then(response => response.json()),
@@ -531,21 +337,32 @@ function fetchData() {
                     if (i <= steps) {
                         // Calculate the progress of the animation
                         let progress = i / steps;
-                
+
                         // Apply an easing function to the progress
                         // This is a simple ease-in-out function, but you can use any function you like
                         let easedProgress = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-                
+
                         // Update the marker's position
                         markers[vehicle.properties.vehicle_id].setLngLat([
                             currentCoordinates.lng + easedProgress * diffLng,
                             currentCoordinates.lat + easedProgress * diffLat
                         ]);
-                
+
+                        // Get the current zoom level
+                        const zoom = map.getZoom();
+
+                        // Calculate the size of the marker based on the zoom level
+                        const markerSize = zoom >= 15 ? 32 : 32 * 0.5;
+
+                        // Update the size of the marker
+                        const el = markers[vehicle.properties.vehicle_id].getElement();
+                        el.style.width = `${markerSize}px`;
+                        el.style.height = `${markerSize}px`;
+
                         // Request the next frame of the animation
                         requestAnimationFrame(animateMarker);
                     }
-                
+
                     i++;
                 }
                 animateMarker();
@@ -665,8 +482,9 @@ function fetchData() {
         const updateTimeDiv = document.getElementById('update-time');
 
         // Update the content of the update time div
-        updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
+        updateTimeDiv.innerHTML = `Updated at ${now.toLocaleTimeString()} <i class="fas fa-sync-alt"></i>`;
         updateTimeDiv.style.fontSize = '12px';
+
 
         // Convert the current time to PST
         let pst = new Date(now.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}));
@@ -738,7 +556,20 @@ window.setInterval(fetchData, 9000);
 function hideLoadingDiv() {
     document.getElementById('loading').style.display = 'none';
 }
+const updateTimeDivDom = document.getElementById('update-time');
+// Add an event listener to the update time div
+updateTimeDivDom.addEventListener('click', function() {
+    // Add the loading class to animate the div
+    updateTimeDivDom.innerHTML = 'Loading...';
+    updateTimeDivDom.classList.add('loading');
 
+    // Fetch new data
+    fetchData().then(() => {
+        // Remove the loading class and show the refresh icon when the data is loaded
+        updateTimeDivDom.classList.remove('loading');
+        updateTimeDivDom.innerHTML = `Updated at ${new Date().toLocaleTimeString()} &#x21BB;`;
+    });
+});
 // Call the updateArrow function whenever the map moves
 let features = [];
     map.addSource('openmaptiles', {
