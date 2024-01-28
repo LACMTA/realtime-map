@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Metro - Rail Time Map</title>
-<meta property="og:description" content="Real-time rail vehicle locations for Metro." />  <meta charset='utf-8'>
+  <title>Metro - Live Bus Route Map</title>
+<meta property="og:description" content="Real-time bus locations for Metro." />  <meta charset='utf-8'>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css' />
   <script src='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js'></script>
@@ -165,8 +165,8 @@
     }
     #update-time {
         position: absolute;
-        top: 10px;
-        right: 10px;
+        bottom: 10px;
+        left: 10px;
         background-color: white;
         padding: 5px;
         border-radius: 3px;
@@ -704,8 +704,33 @@ window.onload = function() {
         console.error('Element not found');
     }
 };
+function defineDefaultValue(){
+    let currentUrl = new URL(window.location.href);
+    let thisrouteCode = currentUrl.searchParams.get("route");
+    console.log(thisrouteCode);
+    if (thisrouteCode != null) {
+        let buttonElement = document.querySelector('.choices__button'); // Select the button element
+        if (buttonElement) {
+            buttonElement.setAttribute('data-value', thisrouteCode); // Set the data-value attribute to the route code
+            
+        }
+        return thisrouteCode;
+    }
+    else{
+        return 'Select a route';
+    }
+}
 function createRouteSelect(map) {
     const select = document.getElementById('route-select');
+    let defaultValue = defineDefaultValue();
+
+    // Add a placeholder option
+    const placeholderOption = document.createElement('option');
+    placeholderOption.value = '';
+    placeholderOption.text = defaultValue;
+    placeholderOption.selected = true;
+    placeholderOption.disabled = true;
+    select.appendChild(placeholderOption);
 
     fetch('https://api.metro.net/LACMTA/vehicle_positions/route_code')
         .then(response => response.json())
@@ -720,7 +745,8 @@ function createRouteSelect(map) {
         .then(() => {
             const choices = new Choices('#route-select', {
                 removeItemButton: true,
-                searchEnabled: true
+                searchEnabled: true,
+                placeholder: true,
             });
 
             select.addEventListener('change', function() {
@@ -764,17 +790,6 @@ function createRouteSelect(map) {
                 }
             });
         });
-        const selectElement = document.getElementById('route-select'); // Replace 'routeSelect' with the actual ID of your <select> element
-        let currentUrl = new URL(window.location.href);
-        let thisrouteCode = currentUrl.searchParams.get("route");
-        if (thisrouteCode != null) {
-            let buttonElement = document.querySelector('.choices__button'); // Select the button element
-            if (buttonElement) {
-                buttonElement.dataset.value = thisrouteCode; // Set the data-value attribute to the route code
-                buttonElement.innerText = thisrouteCode; // Set the inner text to the route code
-            }
-        }
-        console.log(thisrouteCode);
 }
 
 // Call the function
