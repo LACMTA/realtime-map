@@ -126,7 +126,43 @@
         color: #404040;
         font-size: 14px;
     }
+    #route-select {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9999;
+        padding: 10px;
+        background-color: white;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        width: 200px !important; /* Adjust as needed */
+    }
 
+    .choices {
+        width: 100% !important;
+        z-index: 9999;
+    }
+
+    .choices__list--dropdown {
+        max-height: 200px; /* Adjust as needed */
+        overflow-y: auto;
+    }
+
+    .choices__item {
+        color: black !important; /* Adjust as needed */
+        background-color: white !important; /* Adjust as needed */
+    }
+
+    .choices__item--selectable {
+        color: black !important; /* Adjust as needed */
+        background-color: white !important; /* Adjust as needed */
+    }
+
+    .choices__item--selected {
+        color: white !important; /* Adjust as needed */
+        background-color: #007bff !important; /* Adjust as needed */
+    }
     #update-time {
         position: absolute;
         top: 10px;
@@ -142,12 +178,20 @@
 
     </style>
 </head>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js@9.0.1/public/assets/styles/choices.min.css">
+<script src="https://cdn.jsdelivr.net/npm/choices.js@9.0.1/public/assets/scripts/choices.min.js"></script>
+<select id="route-select">
+</select>
 <body>
+    
     <div id="loading" style="cursor:default;position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 10px; background-color: rgba(0, 0, 0, 0.5); color: white; border-radius: 5px; z-index: 9999;">
     Loading live data 
     <span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
 </div>
+
+
 <div id="map"></div>
+
 <script>
     // config options
       const ESRI_KEY =  "AAPKccc2cf38fecc47649e91529acf524abflSSkRTjWwH0AYmZi8jaRo-wdpcTf6z67CLCkOjVYlw3pZyUIF_Y4KGBndq35Y02z";
@@ -301,7 +345,7 @@ function getFeaturesFromData(data) {
 
     return features;
 }
-
+let intervalId;
 function calculateBounds(features) {
     return features.reduce((bounds, feature) => {
         const coordinates = feature.geometry.coordinates;
@@ -312,7 +356,12 @@ function calculateBounds(features) {
         }
     }, new maplibregl.LngLatBounds(features[0].geometry.coordinates, features[0].geometry.coordinates));
 }
-function fetchData() {
+function fetchData(route = '') {
+    const apiUrl = route 
+        ? `https://api.metro.net/LACMTA/vehicle_positions/route_code/${route}?format=geojson`
+        : 'https://api.metro.net/LACMTA/vehicle_positions?format=geojson'; // Replace with your actual API URL for all routes
+
+
     return Promise.all([
         fetch(apiUrl).then(response => response.json()),
     ])
@@ -483,8 +532,10 @@ function updateMap(features) {
         features: features
     });
         // Calculate bounds and zoom map after markers are rendered
-    const bounds = calculateBounds(features);
-    map.fitBounds(bounds, { padding: 70 });
+    if (!window.location) {
+        const bounds = calculateBounds(features);
+        map.fitBounds(bounds, { padding: 70 });
+    }
 }
 
 function updateUI() {
@@ -522,7 +573,27 @@ function handleError(error) {
 // Fetch data when the page loads
 fetchData();
 // Fetch data every 9000 milliseconds
-window.setInterval(fetchData, 9000);
+
+
+function startFetchingData(route) {
+    // Clear the existing interval
+    if (intervalId) {
+        clearInterval(intervalId);
+    }
+
+    // Start a new interval
+    intervalId = setInterval(() => {
+        fetchData(route);
+    }, 9000);
+}
+let select = document.getElementById('route-select');
+// Call startFetchingData whenever the route changes
+select.addEventListener('change', function() {
+    const route = this.value;
+    if (route) {
+        startFetchingData(route);
+    }
+});
 //window.setInterval(fetchData, 9000);
 
 // Define a function to hide the loading div
@@ -627,58 +698,87 @@ window.onload = function() {
         console.error('Element not found');
     }
 };
-    
+function createRouteSelect(map) {
+    const select = document.getElementById('route-select');
+
+    fetch('https://api.metro.net/LACMTA/vehicle_positions/route_code')
+        .then(response => response.json())
+        .then(routes => {
+            routes.forEach(route => {
+                const option = document.createElement('option');
+                option.value = route;
+                option.text = route;
+                select.appendChild(option);
+            });
+        })
+        .then(() => {
+            const choices = new Choices('#route-select', {
+                removeItemButton: true,
+                searchEnabled: true
+            });
+
+            select.addEventListener('change', function() {
+                const route = this.value;
+                if (route) {
+                    // Assuming that the route data is added to the map as a layer and a source
+                    if (map.getLayer('route')) {
+                        map.removeLayer('route');
+                    }
+                    if (map.getSource('route')) {
+                        map.removeSource('route');
+                    }
+
+                    const apiUrl = `https://api.metro.net/LACMTA/vehicle_positions/route_code/${route}?format=geojson`;
+                    // Fetch the new data and add it to the map
+                    fetch(apiUrl)
+                        .then(response => response.json())
+                        .then(data => {
+                            const routeData = route in data ? data[route] : null;
+                            if (routeData) {
+                                map.addSource('route', {
+                                    type: 'geojson',
+                                    data: routeData
+                                });
+
+                                map.addLayer({
+                                    id: 'route',
+                                    type: 'line',
+                                    source: 'route',
+                                    layout: {},
+                                    paint: {
+                                        'line-color': '#888',
+                                        'line-width': 8
+                                    }
+                                });
+                            } else {
+                                console.error('No data for route:', route);
+                            }
+                        })
+                        .catch(error => console.error('Error:', error));
+                }
+            });
+        });
+}
+
+// Call the function
+createRouteSelect(map);
     </script>
     <div id="update-time"></div>
 
     <div id="legend" style="background-color: #fff; padding: 10px; position: absolute; bottom: 50px; right: 10px; z-index: 1; transition: right 0.5s;">
-    <h4><span class="beta">Beta</span> Live Metro Rail Vehicles</h4>
+    <h4><span class="beta">Beta</span> Live Metro Bus Vehicles</h4>
+    <!-- route selection -->
+   
     <div style="display: flex; align-items: center;">
         <img src="https://lacmta.github.io/metro-iconography/Arrow.svg" width="20" height="20" style="transform: rotate(-90deg); margin-right: 10px; margin-left: 10px;">
-        Rail Vehicle
+        Bus
     </div>
     <div style="display: flex; align-items: center;">
-        <span style="background-color: #0072BC; display: inline-block; width: 10px; height: 4px;"></span>
-        <img src="https://lacmta.github.io/metro-iconography/Service_ALine.svg" alt="A" width="20" height="20">
-        <span style="background-color: #0072BC; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> A Line
+        <span style="background-color: #e16710; display: inline-block; width: 10px; height: 4px;"></span>
+        <span style="background-color: #e16710; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> Bus Route 
     </div>
-    <div style="display: flex; align-items: center;">
-        <span style="background-color: #EB131B; display: inline-block; width: 10px; height: 4px;"></span>
-        <img src="https://lacmta.github.io/metro-iconography/Service_BLine.svg" alt="B" width="20" height="20">
-        <span style="background-color: #EB131B; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> B Line
-    </div>
-    <div style="display: flex; align-items: center;">
-        <span style="background-color: #58A738; display: inline-block; width: 10px; height: 4px;"></span>
-        <img src="https://lacmta.github.io/metro-iconography/Service_CLine.svg" alt="C" width="20" height="20">
-        <span style="background-color: #58A738; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> C Line
-    </div>
-    <div style="display: flex; align-items: center;">
-        <span style="background-color: #A05DA5; display: inline-block; width: 10px; height: 4px;"></span>
-        <img src="https://lacmta.github.io/metro-iconography/Service_DLine.svg" alt="D" width="20" height="20">
-        <span style="background-color: #A05DA5; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> D Line
-    </div>
-    <div style="display: flex; align-items: center;">
-        <span style="background-color: #FDB913; display: inline-block; width: 10px; height: 4px;"></span>
-        <img src="https://lacmta.github.io/metro-iconography/Service_ELine2.svg" alt="E" width="20" height="20">
-        <span style="background-color: #FDB913; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> E Line
-    </div>
-    <div style="display: flex; align-items: center;">
-        <span style="background-color: #E56DB1; display: inline-block; width: 10px; height: 4px;"></span>
-        <img src="https://lacmta.github.io/metro-iconography/Service_KLine.svg" alt="K" width="20" height="20">
-        <span style="background-color: #E56DB1; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> K Line
-    </div>
-    <div style="display: flex; align-items: center;">
-        <span style="background-color: #ADB8BF; color: #000000;display: inline-block; width: 10px; height: 4px;"></span>
-        <img src="https://lacmta.github.io/metro-iconography/Service_JLine.svg" alt="J" width="20" height="20">
-        <span style="background-color: #ADB8BF; color: #000000;display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> J Line
-    </div>
-    <div style="display: flex; align-items: center;">
-        <span style="background-color: #FC4C02; display: inline-block; width: 10px; height: 4px;"></span>
-        <img src="https://lacmta.github.io/metro-iconography/Service_GLine.svg" alt="G" width="20" height="20">
-        <span style="background-color: #FC4C02; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> G Line
-    </div>
-    <div style="display: flex; align-items: center;">
-    </div>
+    
+
 <div style="display: flex; justify-content: flex-end; align-items: center;">
     <a class="issues" href="https://github.com/LACMTA/realtime-map" target="_blank" style="display: flex; align-items: center; text-decoration: none; color: inherit;">
         <i class="fab fa-github" style="margin-right: 5px;"></i>
