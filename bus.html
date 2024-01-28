@@ -203,7 +203,7 @@
     
     // Declare a global variable to store the route shapes data
     let routeShapesData;
-    
+    let currentRoute;
     // Create a map of vehicle IDs to markers
     let markers = {};
     
@@ -356,10 +356,15 @@ function calculateBounds(features) {
         }
     }, new maplibregl.LngLatBounds(features[0].geometry.coordinates, features[0].geometry.coordinates));
 }
-function fetchData(route = '') {
-    const apiUrl = route 
-        ? `https://api.metro.net/LACMTA/vehicle_positions/route_code/${route}?format=geojson`
+
+function fetchData() {
+    const currentUrl = new URL(window.location.href);
+    const routeCode = currentUrl.searchParams.get("route");
+    currentRoute = routeCode;
+    const apiUrl = routeCode 
+        ? `https://api.metro.net/LACMTA/vehicle_positions/route_code/${routeCode}?format=geojson`
         : 'https://api.metro.net/LACMTA/vehicle_positions?format=geojson'; // Replace with your actual API URL for all routes
+    // Set the selected option of the <select> element
 
 
     return Promise.all([
@@ -378,6 +383,7 @@ function fetchData(route = '') {
         processVehicleData(data, features);
         updateMap(features); // This will now also calculate bounds and zoom map
         updateUI();
+        
     })
     .catch(error => {
         handleError(error);
@@ -758,10 +764,22 @@ function createRouteSelect(map) {
                 }
             });
         });
+        const selectElement = document.getElementById('route-select'); // Replace 'routeSelect' with the actual ID of your <select> element
+        let currentUrl = new URL(window.location.href);
+        let thisrouteCode = currentUrl.searchParams.get("route");
+        if (thisrouteCode != null) {
+            let buttonElement = document.querySelector('.choices__button'); // Select the button element
+            if (buttonElement) {
+                buttonElement.dataset.value = thisrouteCode; // Set the data-value attribute to the route code
+                buttonElement.innerText = thisrouteCode; // Set the inner text to the route code
+            }
+        }
+        console.log(thisrouteCode);
 }
 
 // Call the function
 createRouteSelect(map);
+
     </script>
     <div id="update-time"></div>
 
