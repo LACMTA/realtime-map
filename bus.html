@@ -204,7 +204,7 @@
       let timer = setTimeout(() => {
         document.getElementById('loading').innerHTML = "Sorry, loading timed out: we're currently unable to load data. Please check your connection or try again later.";
     }, 25000); // 25 seconds
-    
+    let hasAdjustedBounds = false;
     // Declare a global variable to store the route shapes data
     let routeShapesData;
     let currentRoute;
@@ -361,16 +361,13 @@ function calculateBounds(features) {
     }, new maplibregl.LngLatBounds(features[0].geometry.coordinates, features[0].geometry.coordinates));
 }
 
-function fetchData() {
+function fetchData(route=2) {
     const currentUrl = new URL(window.location.href);
-    const routeCode = currentUrl.searchParams.get("route");
+    const routeCode = route || currentUrl.searchParams.get("route");
     currentRoute = routeCode;
     const apiUrl = routeCode 
         ? `https://api.metro.net/LACMTA/vehicle_positions/route_code/${routeCode}?format=geojson`
-        : 'https://api.metro.net/LACMTA/vehicle_positions?format=geojson'; // Replace with your actual API URL for all routes
-    // Set the selected option of the <select> element
-
-
+        : 'https://api.metro.net/LACMTA/vehicle_positions?format=geojson';
     return Promise.all([
         fetch(apiUrl).then(response => response.json()),
     ])
@@ -542,7 +539,7 @@ function updateMap(features) {
         features: features
     });
         // Calculate bounds and zoom map after markers are rendered
-    if (!window.location) {
+    if (!hasAdjustedBounds) {
         const bounds = calculateBounds(features);
         map.fitBounds(bounds, { padding: 70 });
     }
@@ -598,10 +595,29 @@ function startFetchingData(route) {
 }
 let select = document.getElementById('route-select');
 // Call startFetchingData whenever the route changes
+async function clearAllMarkersAndFetchNew(route) {
+    // Clear all markers
+    for (let vehicle_id in markers) {
+        markers[vehicle_id].remove();
+        delete markers[vehicle_id];
+    }
+
+    // Fetch and process new data
+    const features = await fetchData(route);
+
+    // Update the map to fit the new markers
+    updateMap(features);
+
+    // Fit the map to the bounds of the new markers
+
+        const bounds = calculateBounds(features);
+        map.fitBounds(bounds, { padding: 100 });
+}
+
 select.addEventListener('change', function() {
     const route = this.value;
     if (route) {
-        startFetchingData(route);
+        clearAllMarkersAndFetchNew(route);
     }
 });
 //window.setInterval(fetchData, 9000);
@@ -795,7 +811,107 @@ function createRouteSelect(map) {
             });
         });
 }
+class RouteSelectControl {
+    constructor() {
+        this.container = null;
+    }
 
+    onAdd(map) {
+        this.map = map;
+        this.container = document.createElement('div');
+        this.container.className = 'maplibregl-ctrl';
+        this.container.style.display = 'flex';
+        this.container.style.flexDirection = 'column';
+
+        const select = document.createElement('select');
+        select.id = 'route-select';
+        this.container.appendChild(select);
+
+        this.createRouteSelect();
+
+        return this.container;
+    }
+
+    onRemove() {
+        this.container.parentNode.removeChild(this.container);
+        this.map = undefined;
+    }
+
+    createRouteSelect() {
+        const select = this.container.querySelector('#route-select');
+        let defaultValue = defineDefaultValue();
+
+        // Add a placeholder option
+        const placeholderOption = document.createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.text = defaultValue;
+        placeholderOption.selected = true;
+        placeholderOption.disabled = true;
+        select.appendChild(placeholderOption);
+
+        fetch('https://api.metro.net/LACMTA/vehicle_positions/route_code')
+            .then(response => response.json())
+            .then(routes => {
+                routes.forEach(route => {
+                    const option = document.createElement('option');
+                    option.value = route;
+                    option.text = route;
+                    select.appendChild(option);
+                });
+            })
+            .then(() => {
+                const choices = new Choices('#route-select', {
+                    removeItemButton: true,
+                    searchEnabled: true,
+                    placeholder: true,
+                });
+
+                select.addEventListener('change', function() {
+                    const route = this.value;
+                    if (route) {
+                        // Assuming that the route data is added to the map as a layer and a source
+                        if (this.map.getLayer('route')) {
+                            this.map.removeLayer('route');
+                        }
+                        if (this.map.getSource('route')) {
+                            this.map.removeSource('route');
+                        }
+
+                        const apiUrl = `https://api.metro.net/LACMTA/vehicle_positions/route_code/${route}?format=geojson`;
+                        // Fetch the new data and add it to the map
+                        fetch(apiUrl)
+                            .then(response => response.json())
+                            .then(data => {
+                                const routeData = route in data ? data[route] : null;
+                                if (routeData) {
+                                    this.map.addSource('route', {
+                                        type: 'geojson',
+                                        data: routeData
+                                    });
+
+                                    this.map.addLayer({
+                                        id: 'route',
+                                        type: 'line',
+                                        source: 'route',
+                                        layout: {},
+                                        paint: {
+                                            'line-color': '#888',
+                                            'line-width': 8
+                                        }
+                                    });
+                                } else {
+                                    console.error('No data for route:', route);
+                                }
+                            })
+                            .catch(error => console.error('Error:', error));
+                    }
+                }.bind(this));
+            });
+    }
+}
+
+// Add the control to the map
+map.addControl(new RouteSelectControl(), 'top-left');
 // Call the function
 createRouteSelect(map);
 
@@ -904,7 +1020,7 @@ if ("geolocation" in navigator) {
     navigator.geolocation.getCurrentPosition(function(position) {
         var lat = position.coords.latitude;
         var lng = position.coords.longitude;
-
+        hasAdjustedBounds = true;
         // Check if the user is in Los Angeles County
         if (lat >= LA_COUNTY_BOUNDS.south && lat <= LA_COUNTY_BOUNDS.north && lng >= LA_COUNTY_BOUNDS.west && lng <= LA_COUNTY_BOUNDS.east) {
             // Create a new HTML element for the user's location
