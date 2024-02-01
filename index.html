@@ -151,13 +151,14 @@
         opacity: 1;
         transition: opacity 0.6s; /* 600ms to fade out */
         margin-bottom: 15px;
+        z-index: 9999;
         text-align: center;
     }
     </style>
 </head>
 <body>
     <div class="alert">
-        The map is currently under maintenance. We apologize for any inconvenience.
+        The map is currently under maintenance, currently there are no live-updates. We apologize for any inconvenience.
     </div>
     <div id="loading" style="cursor:default;position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 10px; background-color: rgba(0, 0, 0, 0.5); color: white; border-radius: 5px; z-index: 9999;">
     Loading live data 
@@ -165,7 +166,10 @@
 </div>
 <div id="map"></div>
 <script>
-    // config options
+        // hide the alert
+        document.querySelector('.alert').style.display = 'none';
+
+        // config options
       const ESRI_KEY =  "AAPKccc2cf38fecc47649e91529acf524abflSSkRTjWwH0AYmZi8jaRo-wdpcTf6z67CLCkOjVYlw3pZyUIF_Y4KGBndq35Y02z";
       const MAPTILER_KEY = "KydZlIiVFdYDFFfQ4QYq"
       const basemapEnum = "65aff2873118478482ec3dec199e9058";
