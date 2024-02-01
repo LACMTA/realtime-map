@@ -207,6 +207,8 @@
 <div id="map"></div>
 
 <script>
+    // hide the alert
+    document.querySelector('.alert').style.display = 'none';
     // config options
       const ESRI_KEY =  "AAPKccc2cf38fecc47649e91529acf524abflSSkRTjWwH0AYmZi8jaRo-wdpcTf6z67CLCkOjVYlw3pZyUIF_Y4KGBndq35Y02z";
       const MAPTILER_KEY = "KydZlIiVFdYDFFfQ4QYq"
@@ -462,16 +464,6 @@ function updateExistingMarker(vehicle) {
         if (vehicle.properties) {
             let newTimestamp = vehicle.properties.timestamp;
             markers[vehicle.properties.vehicle_id].timestamp = newTimestamp;
-        }
-
-        let popup = markers[vehicle.properties.vehicle_id].getPopup();
-        if (popup) {
-            popup.setHTML(`
-                <div style="display: flex; align-items: center;justify-content:center;">
-                    <span><b>${vehicle.properties.route_code}</b></span>
-                </div>                        
-                Data from: ${new Date(markers[vehicle.properties.vehicle_id].timestamp * 1000).toLocaleTimeString()}
-            `);        
         }
     }
 }
