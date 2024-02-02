@@ -202,7 +202,7 @@ window.onload = function() {
 };
 
 let lastProcessedTime = 0;
-const throttleInterval = 3000; // Adjust this value to change the throttle time
+const throttleInterval = 5000; // Adjust this value to change the throttle time
 
 // Handle the connection opening
 // Handle incoming messages
@@ -414,6 +414,28 @@ function processVehicleData(data, features) {
     });
 }
 
+setInterval(() => {
+    if (socket.readyState === WebSocket.OPEN) {
+        socket.send('ping');
+    }
+}, 30000);
+
+// Assuming `data` is a Map where the keys are timestamps
+// Run every 5 minutes
+setInterval(() => {
+    const now = Date.now();
+    const retentionPeriod = 5 * 60 * 1000; // 5 minutes
+
+    // Remove old entries from the features array
+    features = features.filter(feature => now - feature.timestamp <= retentionPeriod);
+
+    // Remove old entries from the markers object
+    for (const [vehicleId, marker] of Object.entries(markers)) {
+        if (now - marker.timestamp > retentionPeriod) {
+            delete markers[vehicleId];
+        }
+    }
+}, 5 * 60 * 1000);
 
 let arrowSvg;
 
@@ -430,8 +452,8 @@ function updateExistingMarker(vehicle) {
 
         let steps = 30; // 60 frames per second
 
-        // Only update the marker if the distance is less than 0.10 miles
-        if (distanceInMiles < 0.10) {
+        // Only update the marker if the distance is less than 1.0 mile
+        if (distanceInMiles < 1.00) {
             // If an animation is currently running for this marker, wait for it to complete
             if (animations[vehicle.properties.vehicle_id]) {
                 cancelAnimationFrame(animations[vehicle.properties.vehicle_id]);
