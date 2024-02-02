@@ -1,0 +1,86 @@
+<!--
+
+To run this demo, you need to replace 'YOUR_API_KEY' with an API key from the ArcGIS Developers dashboard.
+
+Sign up for a free account and get an API key.
+
+https://developers.arcgis.com/documentation/mapping-apis-and-services/get-started/
+
+-->
+
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Metro: Bus System</title>
+    <style>
+      html,
+      body,
+      #map {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 14px;
+        color: #323232;
+      }
+    </style>
+
+    <script src=https://unpkg.com/maplibre-gl@3.2.1/dist/maplibre-gl.js></script>
+    <link href=https://unpkg.com/maplibre-gl@3.2.1/dist/maplibre-gl.css rel="stylesheet" />
+
+  </head>
+
+  <body>
+    <div id="map"></div>
+
+    <script>
+        const apiKey =  "AAPKccc2cf38fecc47649e91529acf524abflSSkRTjWwH0AYmZi8jaRo-wdpcTf6z67CLCkOjVYlw3pZyUIF_Y4KGBndq35Y02z";
+        const basemapEnum = "arcgis/streets";
+
+        const map = new maplibregl.Map({
+            container: "map", // the id of the div element
+            style: `https://basemapstyles-api.arcgis.com/arcgis/rest/services/styles/v2/styles/${basemapEnum}?token=${apiKey}`,
+            zoom: 9, // starting zoom
+            center: [-117.805, 33.927] // starting location [longitude, latitude]
+        });
+        map.on('load', function () {
+            map.addSource('bus', {
+                'type': 'vector',
+                'tiles': ['https://lacmta.github.io/vectortiles/bus/{z}/{x}/{y}.pbf']
+            });
+            map.on('sourcedata', function (event) {
+    if (event.sourceId === 'bus' && event.isSourceLoaded) {
+        const sourceCache = map.style.sourceCaches['bus'];
+        const sourceLayerNames = new Set();
+
+        for (let t in sourceCache._tiles) {
+            const tile = sourceCache._tiles[t];
+            for (let layer in tile.virtualTile.sourceLayers) {
+                sourceLayerNames.add(layer);
+            }
+        }
+
+        console.log(Array.from(sourceLayerNames));
+    }
+});
+
+            map.addLayer({
+                'id': 'bus',
+                'type': 'line',
+                'source': 'bus',
+                'source-layer': 'flattened_bus', // This should be the name of the layer in your vector tiles
+                'layout': {},
+                'paint': {
+                    'line-color': '#888',
+                    'line-width': 1
+                }
+            });
+        });
+    </script>
+
+  </body>
+
+</html>
