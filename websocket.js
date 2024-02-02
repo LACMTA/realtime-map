@@ -201,8 +201,8 @@ window.onload = function() {
     }
 };
 
-let lastUpdateTime = 0;
-const throttleTime = 5000; // Adjust this value to change the throttle time
+let lastProcessedTime = 0;
+const throttleInterval = 3000; // Adjust this value to change the throttle time
 
 // Handle the connection opening
 // Handle incoming messages
@@ -251,7 +251,7 @@ function processAndUpdate(data) {
                 currentStatus: vehicle.vehicle.currentStatus,
                 currentStopSequence: vehicle.vehicle.currentStopSequence,
                 stopId: vehicle.vehicle.stopId,
-                timestamp: vehicle.vehicle.timestamp,
+                timestamp: parseInt(vehicle.vehicle.timestamp),
                 route_code: vehicle.vehicle.trip.routeId,
                 trip: vehicle.vehicle.trip,
                 trip_id: vehicle.vehicle.trip.tripId,
@@ -270,7 +270,7 @@ function processAndUpdate(data) {
     const features = getFeaturesFromData(geojson);
     let newVehicleIds = new Set(geojson.features.map(vehicle => vehicle.properties.vehicle_id));
     let this_data = {features}
-    removeOldMarkers(newVehicleIds, geojson);
+    // removeOldMarkers(newVehicleIds, this_data);
     processVehicleData(this_data, features);
     updateMap(features);
     updateUI();
@@ -323,15 +323,19 @@ map.on('load', function() {
     socket.onmessage = function(event) {
         const currentTime = Date.now();
         lastUpdateTime = currentTime;
-
+    
         // Process the update
         const data = JSON.parse(event.data);
-
+    
         // If an animation is currently running, store the data and wait for the animation to complete
         if (isAnimating) {
             pendingData = data;
         } else {
-            processAndUpdate(data);
+            // Only process the update if enough time has passed since the last update
+            if (currentTime - lastProcessedTime >= throttleInterval) {
+                processAndUpdate(data);
+                lastProcessedTime = currentTime;
+            }
         }
     };
 });
@@ -394,22 +398,24 @@ function removeOldMarkers(newVehicleIds, data) {
     }
 }
 
-
 function processVehicleData(data, features) {
-    console.log(data);
     data.features.filter(vehicle => vehicle.properties && vehicle.properties.trip_id).forEach(vehicle => {
         if (markers[vehicle.properties.vehicle_id]) {
-            updateExistingMarker(vehicle);
+            // Check if the new timestamp is newer than the current marker's timestamp
+            if (parseInt(vehicle.properties.timestamp) > parseInt(markers[vehicle.properties.vehicle_id].timestamp)){
+                // Update the marker's timestamp
+                markers[vehicle.properties.vehicle_id].timestamp = parseInt(vehicle.properties.timestamp);
+                // Update the marker's position
+                updateExistingMarker(vehicle);
+            }
         } else {
             createNewMarker(vehicle, features);
-            
         }
     });
 }
 
 
 let arrowSvg;
-
 
 function updateExistingMarker(vehicle) {
     let currentCoordinates = markers[vehicle.properties.vehicle_id].getLngLat();
@@ -418,9 +424,14 @@ function updateExistingMarker(vehicle) {
         let diffLng = vehicle.geometry.coordinates[0] - currentCoordinates.lng;
         let diffLat = vehicle.geometry.coordinates[1] - currentCoordinates.lat;
         let distance = Math.sqrt(diffLng * diffLng + diffLat * diffLat);
+
+        // Convert the distance from degrees to miles
+        let distanceInMiles = distance * 69;
+
         let steps = 30; // 60 frames per second
 
-        if (distance > 0.001) { // Adjust this value as needed
+        // Only update the marker if the distance is less than 0.10 miles
+        if (distanceInMiles < 0.10) {
             // If an animation is currently running for this marker, wait for it to complete
             if (animations[vehicle.properties.vehicle_id]) {
                 cancelAnimationFrame(animations[vehicle.properties.vehicle_id]);
@@ -429,7 +440,7 @@ function updateExistingMarker(vehicle) {
             animateMarker(vehicle, diffLng, diffLat, steps, currentCoordinates).then(() => {
                 if (vehicle.properties) {
                     let newTimestamp = vehicle.properties.timestamp;
-                    markers[vehicle.properties.vehicle_id].timestamp = newTimestamp;
+                    markers[vehicle.properties.vehicle_id].timestamp = parseInt(newTimestamp);
                 }
             });
         }
@@ -501,7 +512,8 @@ function createNewMarker(vehicle, features) {
         vehicle_id: vehicle.properties.vehicle_id,
         Heading: vehicle.properties.position_bearing
     };
-    marker.timestamp = vehicle.properties.timestamp;
+    // Convert the timestamp to a number and store it
+    marker.timestamp = parseInt(vehicle.properties.timestamp);
     marker.route_code = vehicle.properties.route_code;
 
     markers[vehicle.properties.vehicle_id] = marker;
@@ -564,7 +576,7 @@ function updateMarker(vehicle) {
     marker.properties = {
         vehicle_id: vehicle.id,
         Heading: vehicle.vehicle.position.bearing,
-        timestamp: vehicle.vehicle.timestamp
+        timestamp: parseInt(vehicle.vehicle.timestamp)
     };
 
     // Update the marker's popup
