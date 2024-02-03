@@ -297,10 +297,9 @@ function processAndUpdate(data) {
         }
     });
 }
-
-map.on('load', function() {
-    // Set up the WebSocket connection and the onmessage event handler here
+function setupWebSocket() {
     let socket = new WebSocket("wss://dev-metro-api-v2.ofhq3vd1r7une.us-west-2.cs.amazonlightsail.com/ws/LACMTA_Rail/vehicle_positions");
+
     socket.onopen = function(event) {
         console.log("WebSocket connection opened");
         setInterval(() => {
@@ -325,25 +324,29 @@ map.on('load', function() {
     // Handle the connection closing
     socket.onclose = function(event) {
         console.log("WebSocket connection closed");
+        // Try to reconnect after a delay
+        setTimeout(setupWebSocket, 5000); // 5000 ms delay before reconnecting
     };
+
     socket.onmessage = function(event) {
         const currentTime = Date.now();
         lastUpdateTime = currentTime;
-    
+
         // Process the update
         const data = JSON.parse(event.data);
-    
+
         // If an animation is currently running, store the data and wait for the animation to complete
         if (isAnimating) {
             pendingData = data;
         } else {
-            // Only process the update if enough time has passed since the last update
-            if (currentTime - lastProcessedTime >= throttleInterval) {
-                processAndUpdate(data);
-                lastProcessedTime = currentTime;
-            }
+            processAndUpdate(data);
         }
     };
+}
+
+map.on('load', function() {
+    // Set up the WebSocket connection and the onmessage event handler here
+    setupWebSocket();
 });
 
 function updateMap(features) {
@@ -500,7 +503,7 @@ function createNewMarker(vehicle, features) {
 
     const heading = vehicle.properties.position_bearing;
     wrapper.style.transform = `rotateZ(${heading}deg)`;
-
+    wrapper.style.transformOrigin = "center";
     map.triggerRepaint();
 
     el.style.backgroundRepeat = 'no-repeat';
@@ -525,7 +528,7 @@ function createNewMarker(vehicle, features) {
     </div>        
     Data from ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}`);
 
-    const marker = new maplibregl.Marker({element: wrapper})
+    const marker = new maplibregl.Marker({element: wrapper, anchor: 'center'})
         .setLngLat(vehicle.geometry.coordinates)
         .setPopup(popup) // Set the popup
         .addTo(map);
@@ -560,7 +563,24 @@ map.on('rotate', function() {
 });
 
 
+map.on('zoom', function() {
+    // Get the current zoom level
+    const zoom = map.getZoom();
 
+    // Calculate the size of the marker and the arrow based on the zoom level
+    const markerSize = zoom >= 15 ? 32 : 32 * 0.5;
+    const arrowSize = zoom >= 15 ? 5 : 5 * 0.5;
+
+    // Update the size of each marker
+    for (const vehicleId in markers) {
+        const marker = markers[vehicleId];
+        const el = marker.getElement();
+
+        // Update the size of the marker
+        el.style.width = `${markerSize}px`;
+        el.style.height = `${markerSize}px`;
+    }
+});
 
 function updateMarkerRotations() {
     // Get the map's current bearing

@@ -14,20 +14,19 @@
 
   <style>
       body { margin: 0; padding: 0;     font-family: 'Open Sans', sans-serif;    overflow-x: hidden; /* Prevents horizontal overflow */}
-.dot {
-    animation: dot 1s infinite;
-}
-
-        .marker {
-            display: block;
-            visibility: visible;
-            border: none;
-            border-radius: 50%;
-            cursor: pointer;
-            padding: 0;
-            background-size: cover;
-
-        }
+    .dot {
+        animation: dot 1s infinite;
+    }
+    .marker {
+        display: block;
+        visibility: visible;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        padding: 0;
+        background-size: cover;
+        background-position: center; /* Add this line */
+    }
 
 @keyframes slideAway {
     0% {transform: translateX(0);}
@@ -106,16 +105,6 @@
 }
       html, body, #map { height: 100%; }
 
-      .marker {
-        display: block;
-        visibility: visible;
-        border: none;
-        border-radius: 50%;
-        cursor: pointer;
-        padding: 0;
-        background-size: cover;
-
-    }
     .maplibregl-ctrl-icon.home-icon {
         background-color: #fff;
         border: none;
