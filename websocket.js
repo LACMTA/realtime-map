@@ -303,6 +303,12 @@ map.on('load', function() {
     let socket = new WebSocket("wss://dev-metro-api-v2.ofhq3vd1r7une.us-west-2.cs.amazonlightsail.com/ws/LACMTA_Rail/vehicle_positions");
     socket.onopen = function(event) {
         console.log("WebSocket connection opened");
+        setInterval(() => {
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send('ping');
+                // console.log('Sent ping'); // for debugging purposes
+            }
+        }, 30000);
     };
 
     socket.onerror = function(error) {
@@ -414,12 +420,6 @@ function processVehicleData(data, features) {
     });
 }
 
-setInterval(() => {
-    if (socket.readyState === WebSocket.OPEN) {
-        socket.send('ping');
-        console.log('Sent ping');
-    }
-}, 30000);
 
 // Run every 5 minutes
 setInterval(() => {
