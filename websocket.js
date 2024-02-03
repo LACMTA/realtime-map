@@ -417,10 +417,10 @@ function processVehicleData(data, features) {
 setInterval(() => {
     if (socket.readyState === WebSocket.OPEN) {
         socket.send('ping');
+        console.log('Sent ping');
     }
 }, 30000);
 
-// Assuming `data` is a Map where the keys are timestamps
 // Run every 5 minutes
 setInterval(() => {
     const now = Date.now();
@@ -441,7 +441,7 @@ let arrowSvg;
 
 function updateExistingMarker(vehicle) {
     let currentCoordinates = markers[vehicle.properties.vehicle_id].getLngLat();
-
+    updateMarkerRotations();
     if (vehicle.geometry && vehicle.geometry.coordinates) {
         let diffLng = vehicle.geometry.coordinates[0] - currentCoordinates.lng;
         let diffLat = vehicle.geometry.coordinates[1] - currentCoordinates.lat;
