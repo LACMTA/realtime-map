@@ -400,7 +400,8 @@ function fetchData() {
                         <div style="display: flex; align-items: center;justify-content:center;">
                             <img src="${routeIcons[markers[vehicle.properties.vehicle_id].route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
                             <span><b>Line</b></span>
-                        </div>                        
+                        </div>
+                        Heading: ${vehicle.properties.position_bearing}<br>                        
                         Data from: ${new Date(markers[vehicle.properties.vehicle_id].timestamp * 1000).toLocaleTimeString()}
                     `);        
                 }
@@ -450,6 +451,7 @@ function fetchData() {
                     <img src="${routeIcons[vehicle.properties.route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
                     <span><b>Line</b></span>
                 </div>
+                Heading: ${vehicle.properties.position_bearing}<br>
                 Data from ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}`);
 
                 // Create the marker and add it to the map
