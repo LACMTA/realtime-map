@@ -318,8 +318,14 @@ function fetchData() {
                 }
             }
         }
+// Get the current time in seconds
+let currentTime = Math.floor(new Date().getTime() / 1000);
 
-    data.features.filter(vehicle => vehicle.properties && vehicle.properties.trip_id).forEach(vehicle => {
+// Calculate the time 15 minutes ago in seconds
+let thirtyMinutesAgo = currentTime - (15 * 60);
+
+// In your data.features.filter method, add a condition to check if the timestamp is greater than thirtyMinutesAgo
+data.features.filter(vehicle => vehicle.properties && vehicle.properties.trip_id && vehicle.properties.timestamp > thirtyMinutesAgo).forEach(vehicle => {
         // If a marker for this vehicle already exists
         if (markers[vehicle.properties.vehicle_id]) {
             // Get the current coordinates of the marker
@@ -343,8 +349,7 @@ function fetchData() {
                 // Check if vehicle.properties is defined
                 if (vehicle.properties) {
                     // Update the Heading property of the marker
-                    markers[vehicle.properties.vehicle_id].properties.Heading = vehicle.properties.position_bearing;
-                }
+                    markers[vehicle.properties.vehicle_id].properties.Heading = Math.round(vehicle.properties.position_bearing);                }
 
                 // Start the animation
                 let i = 0;
@@ -401,7 +406,7 @@ function fetchData() {
                             <img src="${routeIcons[markers[vehicle.properties.vehicle_id].route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
                             <span><b>Line</b></span>
                         </div>
-                        Heading: ${vehicle.properties.position_bearing}<br>                        
+                        Heading: ${Number(vehicle.properties.position_bearing).toFixed(1)}<br>                 
                         Data from: ${new Date(markers[vehicle.properties.vehicle_id].timestamp * 1000).toLocaleTimeString()}
                     `);        
                 }
@@ -451,7 +456,7 @@ function fetchData() {
                     <img src="${routeIcons[vehicle.properties.route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
                     <span><b>Line</b></span>
                 </div>
-                Heading: ${vehicle.properties.position_bearing}<br>
+                Heading: ${Number(vehicle.properties.position_bearing).toFixed(1)}<br>
                 Data from ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}`);
 
                 // Create the marker and add it to the map
@@ -461,10 +466,10 @@ function fetchData() {
                     .addTo(map);
 
                 // Store the bearing in the marker object
-                marker.bearing = vehicle.properties.position_bearing;
-                marker.properties = {
+                marker.bearing = Math.round(vehicle.properties.position_bearing);
+                                marker.properties = {
                     vehicle_id: vehicle.properties.vehicle_id,
-                    Heading: vehicle.properties.position_bearing
+                    Heading: Math.round(vehicle.properties.position_bearing)
                 };
                 marker.timestamp = vehicle.properties.timestamp;
                 marker.route_code = vehicle.properties.route_code;
