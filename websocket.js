@@ -486,9 +486,10 @@ function updatePopup(vehicle) {
     if (popup) {
         // Update the popup's HTML
         popup.setHTML(`
-            <div style="display: flex; align-items: center;justify-content:center;">
-                <span><b>${vehicle.properties.vehicle_id}</b></span>
-            </div>
+        <div style="display: flex; align-items: center;justify-content:center;">
+        <img src="${routeIcons[markers[vehicle.properties.vehicle_id].route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
+        <span><b>Line</b></span>
+    </div>
             Heading: ${vehicle.properties.position_bearing}°<br>                        
             Data from: ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}
         `);
