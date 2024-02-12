@@ -441,10 +441,10 @@ setInterval(() => {
 }, 5 * 60 * 1000);
 
 let arrowSvg;
-
 function updateExistingMarker(vehicle) {
-    let currentCoordinates = markers[vehicle.properties.vehicle_id].getLngLat();
-    updateMarkerRotations();
+    const marker = markers[vehicle.properties.vehicle_id];
+    let currentCoordinates = marker.getLngLat();
+
     if (vehicle.geometry && vehicle.geometry.coordinates) {
         let diffLng = vehicle.geometry.coordinates[0] - currentCoordinates.lng;
         let diffLat = vehicle.geometry.coordinates[1] - currentCoordinates.lat;
@@ -453,7 +453,7 @@ function updateExistingMarker(vehicle) {
         // Convert the distance from degrees to miles
         let distanceInMiles = distance * 69;
 
-        let steps = 30; // 60 frames per second
+        let steps = 60; // 60 frames per second
 
         // Only update the marker if the distance is less than 1.0 mile
         if (distanceInMiles < 1.00) {
@@ -464,18 +464,22 @@ function updateExistingMarker(vehicle) {
 
             animateMarker(vehicle, diffLng, diffLat, steps, currentCoordinates).then(() => {
                 if (vehicle.properties) {
-                    let newTimestamp = vehicle.properties.timestamp;
-                    markers[vehicle.properties.vehicle_id].timestamp = parseInt(newTimestamp);
+                    let newTimestamp = parseInt(vehicle.properties.timestamp);
+                    let currentTimestamp = marker.timestamp;
+
+
+                    marker.timestamp = newTimestamp;
                 }
             });
         }
     }
+    updateMarkerRotations();
+    updatePopup(vehicle);
 }
-
 
 function updatePopup(vehicle) {
     // Get the existing marker
-    let marker = markers[vehicle.vehicle.vehicle.id];
+    let marker = markers[vehicle.properties.vehicle_id];
 
     // Check if the marker has a popup
     let popup = marker.getPopup();
@@ -483,28 +487,23 @@ function updatePopup(vehicle) {
         // Update the popup's HTML
         popup.setHTML(`
             <div style="display: flex; align-items: center;justify-content:center;">
-                <span><b>${vehicle.vehicle.vehicle.id}</b></span>
+                <span><b>${vehicle.properties.vehicle_id}</b></span>
             </div>
-            ${vehicle}                        
-            Data from: ${new Date(vehicle.vehicle.timestamp * 1000).toLocaleTimeString()}
+            Heading: ${vehicle.properties.position_bearing}°<br>                        
+            Data from: ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}
         `);
     }
 }
 
-
 function createNewMarker(vehicle, features) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'wrapper';
     const el = document.createElement('div');
     el.className = 'marker';
 
-    const iconUrl = 'https://raw.githubusercontent.com/LACMTA/metro-iconography/main/Arrow.svg';
+    const iconUrl = 'arrow.svg';
     el.style.background = `url(${iconUrl}) no-repeat center/cover`;
 
+    // Rotate the icon based on the heading
     const heading = vehicle.properties.position_bearing;
-    wrapper.style.transform = `rotateZ(${heading}deg)`;
-    wrapper.style.transformOrigin = "center";
-    map.triggerRepaint();
 
     el.style.backgroundRepeat = 'no-repeat';
     el.style.backgroundSize = 'cover';
@@ -519,30 +518,30 @@ function createNewMarker(vehicle, features) {
     el.style.width = `${size}px`;
     el.style.height = `${size}px`;
 
-    wrapper.appendChild(el);
     const popup = new maplibregl.Popup()
     .setHTML(`
     <div style="display: flex; align-items: center;justify-content:center;">
     <img src="${routeIcons[vehicle.properties.route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
     <span><b>Line</b></span>
     </div>        
+    Heading: ${heading}°<br>
     Data from ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}`);
 
-    const marker = new maplibregl.Marker({element: wrapper, anchor: 'center'})
+    const marker = new maplibregl.Marker({element: el, anchor: 'center'})
         .setLngLat(vehicle.geometry.coordinates)
+        .setRotation(heading) // Rotate the marker
         .setPopup(popup) // Set the popup
         .addTo(map);
-    marker.bearing = vehicle.properties.position_bearing;
+
     marker.properties = {
         vehicle_id: vehicle.properties.vehicle_id,
-        Heading: vehicle.properties.position_bearing
+        Heading: heading
     };
     // Convert the timestamp to a number and store it
     marker.timestamp = parseInt(vehicle.properties.timestamp);
     marker.route_code = vehicle.properties.route_code;
 
     markers[vehicle.properties.vehicle_id] = marker;
-    updateMarkerRotations();
 
     const feature = {
         type: 'Feature',
@@ -552,12 +551,13 @@ function createNewMarker(vehicle, features) {
         },
         properties: {
             vehicle_id: vehicle.properties.vehicle_id,
-            Heading: vehicle.properties.position_bearing
+            Heading: heading
             
         }
     };
     features.push(feature);
 }
+
 map.on('rotate', function() {
     updateMarkerRotations();
 });
@@ -581,7 +581,6 @@ map.on('zoom', function() {
         el.style.height = `${markerSize}px`;
     }
 });
-
 function updateMarkerRotations() {
     // Get the map's current bearing
     const mapBearing = map.getBearing();
@@ -589,38 +588,17 @@ function updateMarkerRotations() {
     // Iterate over each marker
     for (const vehicleId in markers) {
         const marker = markers[vehicleId];
-        const el = marker.getElement().querySelector('.marker'); // This is the marker element
-    // Get the bearing from the marker object
-    const bearing = marker.properties.Heading;
 
-    // Adjust the bearing by subtracting it from 180
-    const adjustedBearing = (180 - bearing + 360) % 360;
+        // Get the bearing from the marker object
+        const bearing = marker.properties.Heading;
 
-    // Calculate the final bearing based on the map's bearing
-    const finalBearing = (adjustedBearing - mapBearing + 360) % 360;
+        // Adjust the bearing by 180 degrees
+        const adjustedBearing = (bearing - 180) % 360;
 
-    // Apply the necessary transformations for correct placement and rotation
-    el.style.transform = `translate(-50%, -50%) rotate(${finalBearing}deg)`;
+        // Calculate the final bearing based on the map's bearing
+        const finalBearing = (adjustedBearing - mapBearing);
 
-        // Assuming `marker.popup` is the popup for the vehicle
-
+        // Set the marker's rotation
+        marker.setRotation(finalBearing);
     }
-}
-function updateMarker(vehicle) {
-    // Get the existing marker
-    let marker = markers[vehicle.id];
-
-    // Update the marker's position and heading
-    marker.setLngLat([vehicle.vehicle.position.longitude, vehicle.vehicle.position.latitude]);
-    marker.getElement().style.transform = `rotate(${vehicle.vehicle.position.bearing + 180}deg)`;
-
-    // Update the marker's properties
-    marker.properties = {
-        vehicle_id: vehicle.id,
-        Heading: vehicle.vehicle.position.bearing,
-        timestamp: parseInt(vehicle.vehicle.timestamp)
-    };
-
-    // Update the marker's popup
-    marker.getPopup().setText(`Vehicle ID: ${vehicle.id}`);
 }
