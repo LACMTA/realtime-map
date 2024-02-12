@@ -594,7 +594,7 @@ function updateMarkerRotations() {
         const bearing = marker.properties.Heading;
 
         // Adjust the bearing by 180 degrees
-        const adjustedBearing = (bearing - 180) % 360;
+        const adjustedBearing = (bearing) % 360;
 
         // Calculate the final bearing based on the map's bearing
         const finalBearing = (adjustedBearing - mapBearing);
