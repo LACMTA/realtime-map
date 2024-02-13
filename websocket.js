@@ -377,11 +377,26 @@ function setupWebSocket(url, processData) {
 
     // Handle visibility change
     document.addEventListener('visibilitychange', function() {
-        if (!document.hidden && pendingData) {
+        if (!document.hidden) {
             // The tab has become visible again
-            // Process the pending data
-            processAndUpdate(pendingData);
-            pendingData = null;
+            // Process the pending data if it exists
+            if (pendingData) {
+                processAndUpdate(pendingData);
+                pendingData = null;
+            }
+
+            // Cleanup old markers
+            const oneMinuteAgo = Date.now() - 60 * 1000; // 1 minute in milliseconds
+            const newData = markers.features.filter(feature => {
+                // Only keep features with a timestamp in the last minute
+                return feature.properties.timestamp > oneMinuteAgo;
+            });
+
+            // Update the data for the layer
+            map.getSource('markers').setData({
+                type: 'FeatureCollection',
+                features: newData
+            });
         }
     });
 }
