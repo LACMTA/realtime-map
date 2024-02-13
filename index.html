@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Metro - Live Rail Map</title>
+  <title>Metro Live Map</title>
 <meta property="og:description" content="Real-time bus locations for Metro." />  <meta charset='utf-8'>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css' />
@@ -100,8 +100,12 @@
     animation: dot 1s 0.66s infinite;
 }
 .beta {
-    color: #FF4500; /* Orange text color */
+    display: inline-block;
+    color: #fff; /* White text color */
+    background-color: #FF4500; /* Orange background color */
     font-size: 0.8em; /* Smaller font size */
+    padding: 2px 6px; /* Padding to make the text look like it's inside a badge */
+    border-radius: 4px; /* Rounded corners */
 }
       html, body, #map { height: 100%; }
 
@@ -199,10 +203,10 @@
 
 
     <div id="legend" style="background-color: #fff; padding: 10px; position: absolute; bottom: 50px; right: 10px; z-index: 1; transition: right 0.5s;">
-        <h4> Live Metro Rail Vehicles<span class="beta">Beta</span></h4>
+        <h4> Metro Live Map <span class="beta">Beta</span></h4>
         <div style="display: flex; align-items: center;">
             <img src="https://lacmta.github.io/metro-iconography/Arrow.svg" width="20" height="20" style="transform: rotate(-90deg); margin-right: 10px; margin-left: 10px;">
-            Rail Vehicle
+            Vehicle
         </div>
         <div style="display: flex; align-items: center;">
             <span style="background-color: #0072BC; display: inline-block; width: 10px; height: 4px;"></span>
