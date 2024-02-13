@@ -1,17 +1,21 @@
-    const ESRI_KEY =  "AAPKccc2cf38fecc47649e91529acf524abflSSkRTjWwH0AYmZi8jaRo-wdpcTf6z67CLCkOjVYlw3pZyUIF_Y4KGBndq35Y02z";
-    const MAPTILER_KEY = "KydZlIiVFdYDFFfQ4QYq"
-    const basemapEnum = "65aff2873118478482ec3dec199e9058";
-    let timer = setTimeout(() => {
-    document.getElementById('loading').innerHTML = "Sorry, loading timed out: we're currently unable to load data. Please check your connection or try again later.";
+
+
+
+const ESRI_KEY =  "AAPKccc2cf38fecc47649e91529acf524abflSSkRTjWwH0AYmZi8jaRo-wdpcTf6z67CLCkOjVYlw3pZyUIF_Y4KGBndq35Y02z";
+const MAPTILER_KEY = "KydZlIiVFdYDFFfQ4QYq"
+const basemapEnum = "65aff2873118478482ec3dec199e9058";
+
+class DataTooOldError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = "DataTooOldError";
+    }
+}
+
+let timer = setTimeout(() => {
+document.getElementById('loading').innerHTML = "Sorry, loading timed out: we're currently unable to load data. Please check your connection or try again later.";
 }, 25000); // 25 seconds
 
-// Bounding box coordinates for Los Angeles County
-const LA_COUNTY_BOUNDS = {
-    north: 34.8233,
-    south: 33.7037,
-    west: -118.6682,
-    east: -117.6462
-};
 let features = [];
 // Declare a global variable to store the route shapes data
 let routeShapesData;
@@ -86,26 +90,6 @@ let brtUrl = 'https://api.metro.net/LACMTA/vehicle_positions/route_code/901%2C91
 
 // Extract the fetch logic into a separate function
 
-function handleError(error) {
-    if (error instanceof TypeError) {
-        document.getElementById('loading').innerHTML = "We're experiencing technical difficulties with our data. We're attempting to reload the data. Please wait<span class='dot1'>.</span><span class='dot2'>.</span><span class='dot3'>.</span>";
-        console.error('TypeError caught: ', error);
-        // Retry loading data
-        fetchData();
-    } else if (error instanceof SyntaxError) {
-        document.getElementById('loading').innerHTML = "We're currently facing some technical issues. Our team is working on it. Please try again later.";
-    } else if (error instanceof ReferenceError) {
-        document.getElementById('loading').innerHTML = "We're unable to find some necessary information. Please try again later.";
-    } else {
-        document.getElementById('loading').innerHTML = `We're experiencing unexpected issues: ${error.message}. Our team is looking into it. Please try again later.`;
-    }
-}
-
-
-// Define a function to hide the loading div
-function hideLoadingDiv() {
-    document.getElementById('loading').style.display = 'none';
-}
 const updateTimeDivDom = document.getElementById('update-time');
 // Add an event listener to the update time div
 
@@ -115,35 +99,11 @@ const updateTimeDivDom = document.getElementById('update-time');
         url: `https://api.maptiler.com/tiles/v3/tiles.json?key=${MAPTILER_KEY}`,
         type: 'vector',
     });
-
     map.addSource('vehicles', {
         type: 'geojson',
-        data: {
-            type: 'FeatureCollection',
-            features: []
-        }
+        data: apiUrl,
     });
 
-    map.addLayer({
-        id: 'vehicles',
-        type: 'circle',
-        source: 'vehicles',
-        // rest of your layer settings...
-    });
-    map.addSource('vehicles2', {
-        type: 'geojson',
-        data: {
-            type: 'FeatureCollection',
-            features: []
-        }
-    });
-
-    map.addLayer({
-        id: 'vehicles2',
-        type: 'circle',
-        source: 'vehicles2',
-        // rest of your layer settings...
-    });
         map.addLayer(
             {
                 'id': '3d-buildings',
@@ -269,68 +229,107 @@ function animateMarker(vehicle, diffLng, diffLat, steps, currentCoordinates) {
         animate();
     });
 }
-
 function processAndUpdate(data) {
-    let allVehicles = data.entity.filter(vehicle => vehicle.vehicle && vehicle.vehicle.trip);
-    let geojson = {
-        type: "FeatureCollection",
-        features: allVehicles.map(vehicle => ({
-            type: "Feature",
-            properties: {
-                id: vehicle.vehicle.vehicle.id,
-                vehicle_id: vehicle.vehicle.vehicle.id,
-                currentStatus: vehicle.vehicle.currentStatus,
-                currentStopSequence: vehicle.vehicle.currentStopSequence,
-                stopId: vehicle.vehicle.stopId,
-                timestamp: parseInt(vehicle.vehicle.timestamp),
-                route_code: vehicle.vehicle.trip.routeId,
-                trip: vehicle.vehicle.trip,
-                trip_id: vehicle.vehicle.trip.tripId,
-                position_bearing: vehicle.vehicle.position.bearing,
-                position_speed: vehicle.vehicle.position.speed,
-                position_latitude: vehicle.vehicle.position.latitude,
-                position_longitude: vehicle.vehicle.position.longitude
+    
 
-            },
-            geometry: {
-                type: "Point",
-                coordinates: [vehicle.vehicle.position.longitude, vehicle.vehicle.position.latitude]
-            }
-        }))
-    };
-    const features = getFeaturesFromData(geojson);
-    let newVehicleIds = new Set(geojson.features.map(vehicle => vehicle.properties.vehicle_id));
-    let this_data = {features}
-    // removeOldMarkers(newVehicleIds, this_data);
-    processVehicleData(this_data, features);
-    updateMap(features);
-    updateUI();
-
-    // Get the current time
-    const now = new Date();
-
-    // Get the update time div
-    const updateTimeDiv = document.getElementById('update-time');
-
-    // Update the content of the update time div
-    updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
-    updateTimeDiv.style.fontSize = '12px';
-
-    // Start the animation
-    isAnimating = true;
-    animateMarker().then(() => {
-        isAnimating = false;
-
-        // If new data has arrived while the animation was running, process it now
-        if (pendingData) {
-            processAndUpdate(pendingData);
-            pendingData = null;
+    function handleError(error) {
+        if (error instanceof DataTooOldError) {
+            document.getElementById('loading').innerHTML = error.message;
+        } else if (error instanceof TypeError) {
+            document.getElementById('loading').innerHTML = "We're experiencing technical difficulties with our data. We're attempting to reload the data. Please wait<span class='dot1'>.</span><span class='dot2'>.</span><span class='dot3'>.</span>";
+            console.error('TypeError caught: ', error);
+            // Retry loading data
+            fetchData();
+        } else if (error instanceof SyntaxError) {
+            document.getElementById('loading').innerHTML = "We're currently facing some technical issues. Our team is working on it. Please try again later.";
+        } else if (error instanceof ReferenceError) {
+            document.getElementById('loading').innerHTML = "We're unable to find some necessary information. Please try again later.";
+        } else {
+            document.getElementById('loading').innerHTML = `We're experiencing unexpected issues: ${error.message}. Our team is looking into it. Please try again later.`;
         }
-    });
-}
+    }
 
-function setupWebSocket(url, processData) {
-    let socket = new WebSocket(url);
+    try {
+        let allVehicles = data.entity.filter(vehicle => vehicle.vehicle && vehicle.vehicle.trip);
+        let geojson = {
+            type: "FeatureCollection",
+            features: allVehicles.map(vehicle => ({
+                type: "Feature",
+                properties: {
+                    id: vehicle.vehicle.vehicle.id,
+                    vehicle_id: vehicle.vehicle.vehicle.id,
+                    currentStatus: vehicle.vehicle.currentStatus,
+                    currentStopSequence: vehicle.vehicle.currentStopSequence,
+                    stopId: vehicle.vehicle.stopId,
+                    timestamp: parseInt(vehicle.vehicle.timestamp),
+                    route_code: vehicle.vehicle.trip.routeId,
+                    trip: vehicle.vehicle.trip,
+                    trip_id: vehicle.vehicle.trip.tripId,
+                    position_bearing: vehicle.vehicle.position.bearing,
+                    position_speed: vehicle.vehicle.position.speed,
+                    position_latitude: vehicle.vehicle.position.latitude,
+                    position_longitude: vehicle.vehicle.position.longitude
+                },
+                geometry: {
+                    type: "Point",
+                    coordinates: [vehicle.vehicle.position.longitude, vehicle.vehicle.position.latitude]
+                }
+            }))
+        };
+
+        // Check if data is older than 15 minutes
+        const fiveMinutes = Math.floor(Date.now() / 1000) - 5 * 60;
+        geojson.features.forEach(feature => {
+            if (feature.properties.timestamp < fiveMinutes) {
+                let oldestTimestamp = feature.properties.timestamp;
+                let oldestDate = new Date(oldestTimestamp * 1000);
+
+                // Format the date
+                let dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+                let date = oldestDate.toLocaleDateString(undefined, dateOptions);
+
+                // Format the time
+                let timeOptions = { hour: '2-digit', minute: '2-digit' };
+                let time = oldestDate.toLocaleTimeString(undefined, timeOptions);
+
+            }
+        });
+
+        const features = getFeaturesFromData(geojson);
+        let newVehicleIds = new Set(geojson.features.map(vehicle => vehicle.properties.vehicle_id));
+        let this_data = {features}
+        // removeOldMarkers(newVehicleIds, this_data);
+        processVehicleData(this_data, features);
+        updateMap(features);
+        updateUI();
+
+        // Get the current time
+        const now = new Date();
+
+        // Get the update time div
+        const updateTimeDiv = document.getElementById('update-time');
+
+        // Update the content of the update time div
+        updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
+        updateTimeDiv.style.fontSize = '12px';
+
+        // Start the animation
+        isAnimating = true;
+        animateMarker().then(() => {
+            isAnimating = false;
+
+            // If new data has arrived while the animation was running, process it now
+            if (pendingData) {
+                processAndUpdate(pendingData);
+                pendingData = null;
+            }
+        });
+    } catch (error) {
+        handleError(error);
+    }
+}
+function setupWebSocket() {
+    let socket = new WebSocket("wss://dev-metro-api-v2.ofhq3vd1r7une.us-west-2.cs.amazonlightsail.com/ws/LACMTA_Rail/vehicle_positions");
 
     socket.onopen = function(event) {
         console.log("WebSocket connection opened");
@@ -348,11 +347,16 @@ function setupWebSocket(url, processData) {
         document.getElementById('loading').innerHTML = "Error loading data. Please check your connection or try again later.";
     };
 
+    // Handle errors
+    socket.onerror = function(error) {
+        console.log(`WebSocket error: ${error}`);
+    };
+
     // Handle the connection closing
     socket.onclose = function(event) {
         console.log("WebSocket connection closed");
         // Try to reconnect after a delay
-        setTimeout(() => setupWebSocket(url, processData), 5000); // 5000 ms delay before reconnecting
+        setTimeout(setupWebSocket, 5000); // 5000 ms delay before reconnecting
     };
 
     socket.onmessage = function(event) {
@@ -360,41 +364,16 @@ function setupWebSocket(url, processData) {
         lastUpdateTime = currentTime;
 
         // Process the update
-        let data = JSON.parse(event.data);
+        const data = JSON.parse(event.data);
 
-        // Filter data based on routeId if a filter function is provided
-        if (processData) {
-            data = processData(data);
-        }
-
-        // If an animation is currently running or the tab is not visible, store the data and wait
-        if (isAnimating || document.hidden) {
+        // If an animation is currently running, store the data and wait for the animation to complete
+        if (isAnimating) {
             pendingData = data;
         } else {
             processAndUpdate(data);
         }
     };
-
-    // Handle visibility change
-    document.addEventListener('visibilitychange', function() {
-        if (!document.hidden && pendingData) {
-            // The tab has become visible again
-            // Process the pending data
-            processAndUpdate(pendingData);
-            pendingData = null;
-        }
-    });
 }
-
-// Call setupWebSocket twice with different URLs and processing functions
-setupWebSocket("wss://api.metro.net/ws/LACMTA_Rail/vehicle_positions");
-
-// setupWebSocket("wss://api.metro.net/ws/LACMTA/vehicle_positions", function(data) {
-//     return data.entity.filter(entity => 
-//         entity.vehicle.trip && 
-//         (entity.vehicle.trip.routeId.startsWith("910-") || entity.vehicle.trip.routeId.startsWith("901-"))
-//     );
-// });
 
 map.on('load', function() {
     // Set up the WebSocket connection and the onmessage event handler here
@@ -459,22 +438,26 @@ function removeOldMarkers(newVehicleIds, data) {
     }
 }
 
-function processVehicleData(data, features) {
-    data.features.filter(vehicle => vehicle.properties && vehicle.properties.trip_id).forEach(vehicle => {
-        if (markers[vehicle.properties.vehicle_id]) {
-            // Check if the new timestamp is newer than the current marker's timestamp
-            if (parseInt(vehicle.properties.timestamp) > parseInt(markers[vehicle.properties.vehicle_id].timestamp)){
-                // Update the marker's timestamp
-                markers[vehicle.properties.vehicle_id].timestamp = parseInt(vehicle.properties.timestamp);
-                // Update the marker's position
-                updateExistingMarker(vehicle);
-            }
-        } else {
-            createNewMarker(vehicle, features);
-        }
-    });
-}
+let latestTimestamps = new Map();
 
+function processVehicleData(data, features) {
+    data.features
+        .filter(vehicle => vehicle.properties && vehicle.properties.trip_id)
+        .forEach(vehicle => {
+            const vehicleId = vehicle.properties.vehicle_id;
+            const timestamp = parseInt(vehicle.properties.timestamp);
+
+            // Check if the marker exists
+            if (!markers[vehicleId]) {
+                createNewMarker(vehicle, features);
+                markers[vehicleId].timestamp = timestamp;
+            } else if (timestamp > markers[vehicleId].timestamp) {
+                // If the marker exists and the incoming data is newer, update the marker
+                updateExistingMarker(vehicle);
+                markers[vehicleId].timestamp = timestamp;
+            }
+        });
+}
 
 // Run every 5 minutes
 setInterval(() => {
@@ -519,6 +502,11 @@ function updateExistingMarker(vehicle) {
                     let newTimestamp = parseInt(vehicle.properties.timestamp);
                     let currentTimestamp = marker.timestamp;
 
+                    // Only log if the new timestamp is older than the current one
+                    if (newTimestamp < currentTimestamp) {
+                        console.log(`Old timestamp: ${currentTimestamp}`);
+                        console.log(`New timestamp: ${newTimestamp}`);
+                    }
 
                     marker.timestamp = newTimestamp;
                 }
@@ -529,34 +517,15 @@ function updateExistingMarker(vehicle) {
     updatePopup(vehicle);
 }
 
-function updatePopup(vehicle) {
-    // Get the existing marker
-    let marker = markers[vehicle.properties.vehicle_id];
-
-    // Check if the marker has a popup
-    let popup = marker.getPopup();
-    if (popup) {
-        // Update the popup's HTML
-        popup.setHTML(`
-        <div style="display: flex; align-items: center;justify-content:center;">
-        <img src="${routeIcons[markers[vehicle.properties.vehicle_id].route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
-        <span><b>Line</b></span>
-    </div>
-            Heading: ${vehicle.properties.position_bearing}°<br>                        
-            Data from: ${new Date(markers[vehicle.properties.vehicle_id].timestamp * 1000).toLocaleTimeString()}
-        `);
-    }
-}
 
 function createNewMarker(vehicle, features) {
     const el = document.createElement('div');
-    el.className = 'marker';
 
     const iconUrl = 'arrow.svg';
     el.style.background = `url(${iconUrl}) no-repeat center/cover`;
 
-    // Rotate the icon based on the heading
     const heading = vehicle.properties.position_bearing;
+    map.triggerRepaint();
 
     el.style.backgroundRepeat = 'no-repeat';
     el.style.backgroundSize = 'cover';
@@ -564,6 +533,17 @@ function createNewMarker(vehicle, features) {
     el.style.backgroundColor = 'white';
     el.style.borderRadius = '50%';
     el.style.cursor = 'pointer';
+    const mapBearing = map.getBearing();
+
+    // Get the bearing from the marker object
+    const bearing = heading;
+
+    // Calculate the final bearing based on the map's bearing
+    const finalBearing = (bearing - mapBearing + 360) % 360;
+
+    // Apply the necessary transformations for correct placement and rotation
+    el.style.transform = `translate(-50%, -50%) rotate(${finalBearing}deg)`;
+
 
     const zoom = map.getZoom();
     const size = zoom >= 15 ? 40 : 40 * 0.5; // Increased size to 40px
@@ -576,19 +556,18 @@ function createNewMarker(vehicle, features) {
     <div style="display: flex; align-items: center;justify-content:center;">
     <img src="${routeIcons[vehicle.properties.route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
     <span><b>Line</b></span>
-    </div>        
-    Heading: ${heading}°<br>
+    </div>
+    Heading: ${vehicle.properties.position_bearing}        
     Data from ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}`);
 
     const marker = new maplibregl.Marker({element: el, anchor: 'center'})
         .setLngLat(vehicle.geometry.coordinates)
-        .setRotation(heading) // Rotate the marker
         .setPopup(popup) // Set the popup
         .addTo(map);
-
+    marker.bearing = vehicle.properties.position_bearing;
     marker.properties = {
         vehicle_id: vehicle.properties.vehicle_id,
-        Heading: heading
+        Heading: vehicle.properties.position_bearing
     };
     // Convert the timestamp to a number and store it
     marker.timestamp = parseInt(vehicle.properties.timestamp);
@@ -604,13 +583,13 @@ function createNewMarker(vehicle, features) {
         },
         properties: {
             vehicle_id: vehicle.properties.vehicle_id,
-            Heading: heading
+            Heading: vehicle.properties.position_bearing
             
         }
     };
+
     features.push(feature);
 }
-
 map.on('rotate', function() {
     updateMarkerRotations();
 });
@@ -634,6 +613,7 @@ map.on('zoom', function() {
         el.style.height = `${markerSize}px`;
     }
 });
+
 function updateMarkerRotations() {
     // Get the map's current bearing
     const mapBearing = map.getBearing();
@@ -641,85 +621,33 @@ function updateMarkerRotations() {
     // Iterate over each marker
     for (const vehicleId in markers) {
         const marker = markers[vehicleId];
+        const el = marker.getElement(); // This is the marker element
 
         // Get the bearing from the marker object
         const bearing = marker.properties.Heading;
 
-        // Adjust the bearing by 180 degrees
-        const adjustedBearing = (bearing) % 360;
-
         // Calculate the final bearing based on the map's bearing
-        const finalBearing = (adjustedBearing - mapBearing);
+        const finalBearing = (bearing - mapBearing + 360) % 360;
 
-        // Set the marker's rotation
-        marker.setRotation(finalBearing);
+        // Apply the necessary transformations for correct placement and rotation
+        el.style.transform = `translate(-50%, -50%) rotate(${finalBearing}deg)`;
     }
 }
+function updateMarker(vehicle) {
+    // Get the existing marker
+    let marker = markers[vehicle.id];
 
-map.addControl(new HomeControl(), 'top-left');
+    // Update the marker's position and heading
+    marker.setLngLat([vehicle.vehicle.position.longitude, vehicle.vehicle.position.latitude]);
+    marker.getElement().style.transform = `rotate(${vehicle.vehicle.position.bearing + 180}deg)`;
 
-// Check if Geolocation API is available
-if ("geolocation" in navigator) {
-    navigator.geolocation.getCurrentPosition(function(position) {
-        var lat = position.coords.latitude;
-        var lng = position.coords.longitude;
+    // Update the marker's properties
+    marker.properties = {
+        vehicle_id: vehicle.id,
+        Heading: vehicle.vehicle.position.bearing,
+        timestamp: parseInt(vehicle.vehicle.timestamp)
+    };
 
-        // Check if the user is in Los Angeles County
-        if (lat >= LA_COUNTY_BOUNDS.south && lat <= LA_COUNTY_BOUNDS.north && lng >= LA_COUNTY_BOUNDS.west && lng <= LA_COUNTY_BOUNDS.east) {
-            // Create a new HTML element for the user's location
-            var userLocation = document.createElement("div");
-            userLocation.id = "userLocation";
-            userLocation.className = "pulsatingIcon";
-
-            // Add the user's location to the map
-            // Create a new marker
-            let marker = new maplibregl.Marker(userLocation)
-                .setLngLat([lng, lat])
-
-            // Zoom in to the user's location
-            map.flyTo({center: [lng, lat], zoom: 12});
-
-            // Add a circle to represent the accuracy of the geolocation
-            var accuracy = position.coords.accuracy;
-            map.addSource('circle', {
-                'type': 'geojson',
-                'data': {
-                    'type': 'FeatureCollection',
-                    'features': [{
-                        'type': 'Feature',
-                        'geometry': {
-                            'type': 'Point',
-                            'coordinates': [lng, lat]
-                        }
-                    }]
-                }
-            });
-            map.addLayer({
-                'id': 'circle',
-                'type': 'circle',
-                'source': 'circle',
-                'paint': {
-                    'circle-radius': accuracy,
-                    'circle-color': '#007cbf',
-                    'circle-opacity': 0.3
-                }
-            });
-        }
-    });
-} else {
-    console.log("Geolocation is not supported by this browser.");
+    // Update the marker's popup
+    marker.getPopup().setText(`Vehicle ID: ${vehicle.id}`);
 }
-// Add geolocate control to the map.
-var geolocate = new maplibregl.GeolocateControl({
-    positionOptions: {
-        enableHighAccuracy: true
-    },
-    trackUserLocation: true
-});
-
-map.addControl(geolocate, 'top-left');
-
-// Set the map's center to the user's location once it's available
-geolocate.on('geolocate', function(e) {
-    map.flyTo({center: [e.coords.longitude, e.coords.latitude], zoom: 14});
-});

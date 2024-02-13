@@ -166,13 +166,6 @@
 </div>
 <div id="map"></div>
 <script>
-    
-class DataTooOldError extends Error {
-    constructor(message) {
-        super(message);
-        this.name = "DataTooOldError";
-    }
-}
         // hide the alert
         document.querySelector('.alert').style.display = 'none';
 
@@ -260,23 +253,9 @@ class DataTooOldError extends Error {
 
 
 // Extract the fetch logic into a separate function
+
 function handleError(error) {
-    console.error('==error==');
-    console.error(error);
-    document.getElementById('loading').style.display = 'block';
-    if (error.message === 'Data is older than 15 minutes.') {
-        // Get the oldest timestamp
-        let oldestTimestamp = Math.min(...data.features.map(vehicle => vehicle.properties.timestamp));
-
-        // Convert the timestamp to a Date object
-        let oldestDate = new Date(oldestTimestamp * 1000);
-
-        // Format the date and time
-        let date = oldestDate.toLocaleDateString();
-        let time = oldestDate.toLocaleTimeString();
-
-        document.getElementById('loading').innerHTML = `Data is older than 15 minutes. The oldest data is from ${date} at ${time}.`;
-    } else if (error instanceof TypeError) {
+    if (error instanceof TypeError) {
         document.getElementById('loading').innerHTML = "We're experiencing technical difficulties with our data. We're attempting to reload the data. Please wait<span class='dot1'>.</span><span class='dot2'>.</span><span class='dot3'>.</span>";
         console.error('TypeError caught: ', error);
         // Retry loading data
@@ -342,12 +321,9 @@ function fetchData() {
     // Get the current time in seconds
     let currentTime = Math.floor(new Date().getTime() / 1000);
 
-
-    let oldDataExists = false;
-
-    // Check if all data is older than 5 minutes
-    const fiveMinutesAgo = Math.floor(Date.now() / 1000) - 5 * 60;
-    let allDataIsOld = data.features.every(vehicle => vehicle.properties.timestamp < fiveMinutesAgo);
+    // Calculate the time 10 minutes ago in seconds
+    let tenMinutesAgo = currentTime - (10 * 60);
+    let allDataIsOld = data.features.every(vehicle => vehicle.properties.timestamp < tenMinutesAgo);
 
     if (allDataIsOld) {
         let timestamps = data.features.map(vehicle => vehicle.properties.timestamp);
@@ -366,17 +342,24 @@ function fetchData() {
 
         console.log(`Oldest data is from: ${oldest}`);
         console.log(`Latest data is from: ${latest}`);
-
+     // Display the alert in the 'alert' div
+        let alertElement = document.querySelector('.alert');
+        if (alertElement) {
+            alertElement.style.display = 'block';
+            alertElement.innerHTML = `
+                All data is older than 5 minutes. The oldest data is from ${latest}. There may not be live-updates, please check back later.
+            `;
+        }
     }
-
-    data.features.forEach(vehicle => {
-        if (vehicle.properties && vehicle.properties.trip_id && vehicle.properties.timestamp) {
-            if (markers[vehicle.properties.vehicle_id]){
+    data.features.filter(vehicle => vehicle.properties && vehicle.properties.trip_id).forEach(vehicle => {
+        // If a marker for this vehicle already exists
+        if (markers[vehicle.properties.vehicle_id]) {
+            // Get the current coordinates of the marker
+            let currentCoordinates = markers[vehicle.properties.vehicle_id].getLngLat();
+            
             // Check if vehicle.geometry and vehicle.geometry.coordinates are defined
             if (vehicle.geometry && vehicle.geometry.coordinates) {
                 // Calculate the difference in coordinates
-                console.log(vehicle.properties.vehicle_id);
-                let currentCoordinates = markers[vehicle.properties.vehicle_id].getLngLat();
                 let diffLng = vehicle.geometry.coordinates[0] - currentCoordinates.lng;
                 let diffLat = vehicle.geometry.coordinates[1] - currentCoordinates.lat;
                 let distance = Math.sqrt(diffLng * diffLng + diffLat * diffLat);
@@ -452,7 +435,6 @@ function fetchData() {
                         Heading: ${Number(vehicle.properties.position_bearing).toFixed(1)}<br>                 
                         Data from: ${new Date(markers[vehicle.properties.vehicle_id].timestamp * 1000).toLocaleTimeString()}
                     `);        
-                    }
                 }
             }
         }
