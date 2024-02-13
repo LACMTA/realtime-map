@@ -259,7 +259,6 @@ function processAndUpdate(data) {
                 position_speed: vehicle.vehicle.position.speed,
                 position_latitude: vehicle.vehicle.position.latitude,
                 position_longitude: vehicle.vehicle.position.longitude
-
             },
             geometry: {
                 type: "Point",
@@ -270,6 +269,31 @@ function processAndUpdate(data) {
     const features = getFeaturesFromData(geojson);
     let newVehicleIds = new Set(geojson.features.map(vehicle => vehicle.properties.vehicle_id));
     let this_data = {features}
+
+    // Get the current time
+    let currentTime = Date.now();
+
+    // Remove markers that are older than 30 seconds
+    Object.keys(markers).forEach(vehicleId => {
+        let vehicle = markers[vehicleId];
+        let vehicleTime = vehicle.properties.timestamp * 1000; // Convert to milliseconds
+
+        // If the vehicle data is older than 30 seconds, remove it
+        if (currentTime - vehicleTime > 30000) {
+            // Remove the marker from the map
+            vehicle.remove();
+
+            // Remove the marker from the markers object
+            delete markers[vehicleId];
+
+            // Clear the animation interval for this vehicle
+            if (animationIntervals[vehicleId]) {
+                clearInterval(animationIntervals[vehicleId]);
+                delete animationIntervals[vehicleId];
+            }
+        }
+    });
+
     // removeOldMarkers(newVehicleIds, this_data);
     processVehicleData(this_data, features);
     updateMap(features);
@@ -335,13 +359,30 @@ function setupWebSocket() {
         // Process the update
         const data = JSON.parse(event.data);
 
-        // If an animation is currently running, store the data and wait for the animation to complete
-        if (isAnimating) {
+        // If the tab is not visible, store the data and wait
+        if (document.hidden) {
             pendingData = data;
         } else {
+            // If an animation is currently running, stop it
+            if (isAnimating) {
+                // Stop all animations
+                Object.values(animationIntervals).forEach(clearInterval);
+            }
+
+            // Process the new data
             processAndUpdate(data);
         }
     };
+
+    // Handle visibility change
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden && pendingData) {
+            // The tab has become visible again
+            // Process the pending data
+            processAndUpdate(pendingData);
+            pendingData = null;
+        }
+    });
 }
 
 map.on('load', function() {
@@ -406,19 +447,20 @@ function removeOldMarkers(newVehicleIds, data) {
         }
     }
 }
-
 function processVehicleData(data, features) {
-    data.features.filter(vehicle => vehicle.properties && vehicle.properties.trip_id).forEach(vehicle => {
-        if (markers[vehicle.properties.vehicle_id]) {
-            // Check if the new timestamp is newer than the current marker's timestamp
-            if (parseInt(vehicle.properties.timestamp) > parseInt(markers[vehicle.properties.vehicle_id].timestamp)){
-                // Update the marker's timestamp
-                markers[vehicle.properties.vehicle_id].timestamp = parseInt(vehicle.properties.timestamp);
-                // Update the marker's position
+    // Get the current time
+    let currentTime = Date.now();
+
+    features.forEach(vehicle => {
+        let vehicleTime = vehicle.properties.timestamp * 1000; // Convert to milliseconds
+
+        // If the vehicle data is not older than 30 seconds, process it
+        if (currentTime - vehicleTime <= 30000) {
+            if (markers[vehicle.properties.vehicle_id]) {
                 updateExistingMarker(vehicle);
+            } else {
+                createNewMarker(vehicle,features);
             }
-        } else {
-            createNewMarker(vehicle, features);
         }
     });
 }
@@ -448,30 +490,22 @@ function updateExistingMarker(vehicle) {
     if (vehicle.geometry && vehicle.geometry.coordinates) {
         let diffLng = vehicle.geometry.coordinates[0] - currentCoordinates.lng;
         let diffLat = vehicle.geometry.coordinates[1] - currentCoordinates.lat;
-        let distance = Math.sqrt(diffLng * diffLng + diffLat * diffLat);
-
-        // Convert the distance from degrees to miles
-        let distanceInMiles = distance * 69;
 
         let steps = 60; // 60 frames per second
 
-        // Only update the marker if the distance is less than 1.0 mile
-        if (distanceInMiles < 1.00) {
-            // If an animation is currently running for this marker, wait for it to complete
-            if (animations[vehicle.properties.vehicle_id]) {
-                cancelAnimationFrame(animations[vehicle.properties.vehicle_id]);
-            }
-
-            animateMarker(vehicle, diffLng, diffLat, steps, currentCoordinates).then(() => {
-                if (vehicle.properties) {
-                    let newTimestamp = parseInt(vehicle.properties.timestamp);
-                    let currentTimestamp = marker.timestamp;
-
-
-                    marker.timestamp = newTimestamp;
-                }
-            });
+        // If an animation is currently running for this marker, wait for it to complete
+        if (animations[vehicle.properties.vehicle_id]) {
+            cancelAnimationFrame(animations[vehicle.properties.vehicle_id]);
         }
+
+        animateMarker(vehicle, diffLng, diffLat, steps, currentCoordinates).then(() => {
+            if (vehicle.properties) {
+                let newTimestamp = parseInt(vehicle.properties.timestamp);
+                let currentTimestamp = marker.timestamp;
+
+                marker.timestamp = newTimestamp;
+            }
+        });
     }
     updateMarkerRotations();
     updatePopup(vehicle);
