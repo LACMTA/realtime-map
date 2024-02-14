@@ -115,35 +115,11 @@ const updateTimeDivDom = document.getElementById('update-time');
         url: `https://api.maptiler.com/tiles/v3/tiles.json?key=${MAPTILER_KEY}`,
         type: 'vector',
     });
-
     map.addSource('vehicles', {
         type: 'geojson',
-        data: {
-            type: 'FeatureCollection',
-            features: []
-        }
+        data: apiUrl,
     });
 
-    map.addLayer({
-        id: 'vehicles',
-        type: 'circle',
-        source: 'vehicles',
-        // rest of your layer settings...
-    });
-    map.addSource('vehicles2', {
-        type: 'geojson',
-        data: {
-            type: 'FeatureCollection',
-            features: []
-        }
-    });
-
-    map.addLayer({
-        id: 'vehicles2',
-        type: 'circle',
-        source: 'vehicles2',
-        // rest of your layer settings...
-    });
         map.addLayer(
             {
                 'id': '3d-buildings',
@@ -377,39 +353,21 @@ function setupWebSocket(url, processData) {
 
     // Handle visibility change
     document.addEventListener('visibilitychange', function() {
-        if (!document.hidden) {
+        if (!document.hidden && pendingData) {
             // The tab has become visible again
-            // Process the pending data if it exists
-            if (pendingData) {
-                processAndUpdate(pendingData);
-                pendingData = null;
-            }
-
-            // Cleanup old markers
-            const oneMinuteAgo = Date.now() - 60 * 1000; // 1 minute in milliseconds
-            const newData = markers.features.filter(feature => {
-                // Only keep features with a timestamp in the last minute
-                return feature.properties.timestamp > oneMinuteAgo;
-            });
-
-            // Update the data for the layer
-            map.getSource('markers').setData({
-                type: 'FeatureCollection',
-                features: newData
-            });
+            // Process the pending data
+            processAndUpdate(pendingData);
+            pendingData = null;
         }
     });
 }
 
 // Call setupWebSocket twice with different URLs and processing functions
-setupWebSocket("wss://api.metro.net/ws/LACMTA_Rail/vehicle_positions");
-
-// setupWebSocket("wss://api.metro.net/ws/LACMTA/vehicle_positions", function(data) {
-//     return data.entity.filter(entity => 
-//         entity.vehicle.trip && 
-//         (entity.vehicle.trip.routeId.startsWith("910-") || entity.vehicle.trip.routeId.startsWith("901-"))
-//     );
-// });
+setupWebSocket("wss://dev-metro-api-v2.ofhq3vd1r7une.us-west-2.cs.amazonlightsail.com/ws/LACMTA_Rail/vehicle_positions");
+setupWebSocket("wss://api.metro.net/ws/LACMTA/vehicle_positions", function(data) {
+    // Only keep instances where the routeId is "910-" or "901-"
+    return data.entity.filter(vehicle => vehicle.vehicle.trip.route_id === "910-" || vehicle.vehicle.trip.route_id === "901-");
+});
 
 map.on('load', function() {
     // Set up the WebSocket connection and the onmessage event handler here
