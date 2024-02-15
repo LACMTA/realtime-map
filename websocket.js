@@ -536,7 +536,7 @@ function updatePopup(vehicle) {
         popup.setHTML(`
         <div style="display: flex; align-items: center;justify-content:center;">
         <img src="${routeIcons[markers[vehicle.properties.vehicle_id].route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
-        <span><b>Line</b></span>
+        <span></span>
     </div>
             Heading: ${vehicle.properties.position_bearing}°<br>                        
             Data from: ${new Date(markers[vehicle.properties.vehicle_id].timestamp * 1000).toLocaleTimeString()}
@@ -571,7 +571,7 @@ function createNewMarker(vehicle, features) {
     .setHTML(`
     <div style="display: flex; align-items: center;justify-content:center;">
     <img src="${routeIcons[vehicle.properties.route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
-    <span><b>Line</b></span>
+    <span></span>
     </div>        
     Heading: ${heading}°<br>
     Data from ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}`);
