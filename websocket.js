@@ -34,9 +34,9 @@ let hour = pst.getHours();
 
 let map = new maplibregl.Map({
     container: 'map',
-    center: [-118.25133692966446, 34.05295151499077], 
+    center: [-118.25133692966446, 34.00095151499077], 
     zoom: 9,
-    pitch: 20,
+    pitch: 0,
     bearing: 0,
     container: 'map',
     antialias: true,
@@ -174,9 +174,9 @@ class HomeControl {
         button.innerHTML = '<i class="fas fa-home"></i>';
         button.addEventListener('click', () => {
             this.map.flyTo({
-                center: [-118.25133692966446, 34.05295151499077],
+                center: [-118.25133692966446, 34.00095151499077],
                 zoom: 9,
-                pitch: 20,
+                pitch: 0,
                 bearing: 0
             });
         });
@@ -395,6 +395,12 @@ setupWebSocket("wss://api.metro.net/ws/LACMTA/vehicle_positions/910,901");
 map.on('load', function() {
     // Set up the WebSocket connection and the onmessage event handler here
     setupWebSocket();
+    // Set the zoom level based on the screen width
+    if (screenWidth > 1440) { // Change 1440 to whatever width you consider "large"
+        map.setZoom(10); // Change 10 to the zoom level you want for large screens
+    } else {
+        map.setZoom(9); // Change 5 to the zoom level you want for smaller screens
+    }
 });
 
 function updateMap(features) {
