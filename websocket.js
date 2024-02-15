@@ -308,9 +308,9 @@ function processAndUpdate(data) {
         }
     });
 }
-
 function setupWebSocket(url, processData) {
     let socket = new WebSocket(url);
+    let dataStore = {};
 
     socket.onopen = function(event) {
         console.log("WebSocket connection opened");
@@ -328,7 +328,6 @@ function setupWebSocket(url, processData) {
         document.getElementById('loading').innerHTML = "Error loading data. Please check your connection or try again later.";
     };
 
-    // Handle the connection closing
     socket.onclose = function(event) {
         console.log("WebSocket connection closed");
         // Try to reconnect after a delay
@@ -341,6 +340,12 @@ function setupWebSocket(url, processData) {
 
         // Process the update
         let data = JSON.parse(event.data);
+
+        // Store the data with the current timestamp
+        dataStore[data.id] = {
+            data: data,
+            timestamp: Date.now()
+        };
 
         // Filter data based on routeId if a filter function is provided
         if (processData) {
@@ -367,6 +372,20 @@ function setupWebSocket(url, processData) {
             pendingData = null;
         }
     });
+
+    // Function to clean up old data
+    function cleanupData() {
+        let now = Date.now();
+        for (let id in dataStore) {
+            // If the data is older than 2 mins, delete it
+            if (now - dataStore[id].timestamp > 12000) {
+                delete dataStore[id];
+            }
+        }
+    }
+
+    // Run the cleanup function every minute
+    setInterval(cleanupData, 60000);
 }
 
 // Call setupWebSocket twice with different URLs and processing functions
@@ -543,7 +562,7 @@ function createNewMarker(vehicle, features) {
     el.style.cursor = 'pointer';
 
     const zoom = map.getZoom();
-    const size = zoom >= 15 ? 40 : 40 * 0.5; // Increased size to 40px
+    const size = 40; // Set the size to a constant value
 
     el.style.width = `${size}px`;
     el.style.height = `${size}px`;

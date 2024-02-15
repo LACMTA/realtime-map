@@ -297,25 +297,49 @@
           type: 'raster',
           source: 'imagery-source'
       })
+    // Get the current URL
+    let currentUrl = new URL(window.location.href);
 
-      // Get the current URL
-      let currentUrl = new URL(window.location.href);
+    // Get the route code from the URL parameters
+    let routeCode = currentUrl.searchParams.get("route");
+    let socket;
 
-        // Get the route code from the URL parameters
-      let routeCode = currentUrl.searchParams.get("route");
-      let apiUrl;
-      if (routeCode) {
-        // If route code is present, use it in the API URL
-        apiUrl = `https://api.metro.net/LACMTA/vehicle_positions/route_code/${routeCode}?format=geojson`;
-      } else {
-        // If route code is not present, default to the original API URL
-        apiUrl = 'https://api.metro.net/LACMTA/vehicle_positions?format=geojson';
-      }
-    
-          map.addSource('vehicles', {
-            type: 'geojson',
-            data: apiUrl,
-        });
+    if (routeCode) {
+        // If route code is present, use it in the WebSocket URL
+        socket = new WebSocket(`wss://api.metro.net/ws/LACMTA/vehicle_positions/${routeCode}`);
+    } else {
+        // If route code is not present, default to the original WebSocket URL
+        socket = new WebSocket('wss://api.metro.net/ws/LACMTA/vehicle_positions');
+    }
+
+    // Connection opened
+    socket.addEventListener('open', function (event) {
+        console.log('WebSocket is open now.');
+    });
+
+    // Listen for messages
+    socket.addEventListener('message', function (event) {
+        console.log('Message from server: ', event.data);
+        let data = JSON.parse(event.data);
+        if (data) {
+            try {
+                // Assuming you have a function to process the data
+                fetchData(data);
+            } catch (error) {
+                console.error(error);
+            }
+        }
+    });
+
+    // Connection closed
+    socket.addEventListener('close', function (event) {
+        console.log('WebSocket is closed now.');
+    });
+
+    // Connection error
+    socket.addEventListener('error', function (event) {
+        console.log('WebSocket error: ', event);
+    });
 
     // Declare and initialize the popups object
     let popups = {};
