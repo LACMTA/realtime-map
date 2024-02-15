@@ -544,7 +544,6 @@ function updatePopup(vehicle) {
             Current Stop Sequence: ${vehicle.properties.currentStopSequence}<br>
             Stop ID: ${vehicle.properties.stopId}<br>
             Route Code: ${vehicle.properties.route_code}<br>
-            Speed: ${vehicle.properties.position_speed} mph<br>
             Heading: ${vehicle.properties.position_bearing}°<br>                        
             Data from: ${new Date(markers[vehicle.properties.vehicle_id].timestamp * 1000).toLocaleTimeString()}
         `);
@@ -586,7 +585,6 @@ function createNewMarker(vehicle, features) {
         Current Stop Sequence: ${vehicle.properties.currentStopSequence}<br>
         Stop ID: ${vehicle.properties.stopId}<br>
         Route Code: ${vehicle.properties.route_code}<br>
-        Speed: ${vehicle.properties.position_speed} mph<br>
         Heading: ${heading}°<br>                        
         Data from ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}`
     );
