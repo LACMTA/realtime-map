@@ -562,7 +562,7 @@ function createNewMarker(vehicle, features) {
     el.style.cursor = 'pointer';
 
     const zoom = map.getZoom();
-    const size = 40; // Set the size to a constant value
+    const size = 16; // Set the size to a constant value
 
     el.style.width = `${size}px`;
     el.style.height = `${size}px`;
