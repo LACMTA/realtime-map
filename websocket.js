@@ -498,7 +498,17 @@ function processVehicleData(data, features) {
                 updateExistingMarker(vehicle);
             }
         } else {
-            createNewMarker(vehicle, features);
+            // Check if a marker with the same vehicle_id already exists
+            const existingMarker = Object.values(markers).find(marker => marker.vehicle_id === vehicle.properties.vehicle_id);
+            if (existingMarker) {
+                // If the new timestamp is newer, delete the old marker and create a new one
+                if (vehicleTimestamp > parseInt(existingMarker.timestamp)) {
+                    delete markers[existingMarker.vehicle_id];
+                    createNewMarker(vehicle, features);
+                }
+            } else {
+                createNewMarker(vehicle, features);
+            }
         }
     });
 }
