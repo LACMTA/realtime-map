@@ -485,7 +485,7 @@ function processVehicleData(data, features) {
 // Run every 5 minutes
 setInterval(() => {
     const now = Date.now();
-    const retentionPeriod = 5 * 60 * 1000; // 5 minutes
+    const retentionPeriod = 3 * 60 * 1000; // 5 minutes
 
     // Remove old entries from the features array
     features = features.filter(feature => now - feature.timestamp <= retentionPeriod);
@@ -496,7 +496,7 @@ setInterval(() => {
             delete markers[vehicleId];
         }
     }
-    }, 5 * 60 * 1000);
+    }, 3 * 60 * 1000);
 
     let arrowSvg;
     function updateExistingMarker(vehicle) {
