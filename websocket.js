@@ -479,12 +479,21 @@ function updateUI() {
 }
 
 function processVehicleData(data, features) {
+    const currentTimestamp = Math.floor(Date.now() / 1000); // Get current timestamp in seconds
+
     data.features.filter(vehicle => vehicle.properties && vehicle.properties.trip_id).forEach(vehicle => {
+        const vehicleTimestamp = parseInt(vehicle.properties.timestamp);
+
+        // Check if the data is older than 1 minute
+        if (currentTimestamp - vehicleTimestamp > 60) {
+            return; // Skip this vehicle data
+        }
+
         if (markers[vehicle.properties.vehicle_id]) {
             // Check if the new timestamp is newer than the current marker's timestamp
-            if (parseInt(vehicle.properties.timestamp) > parseInt(markers[vehicle.properties.vehicle_id].timestamp)){
+            if (vehicleTimestamp > parseInt(markers[vehicle.properties.vehicle_id].timestamp)){
                 // Update the marker's timestamp
-                markers[vehicle.properties.vehicle_id].timestamp = parseInt(vehicle.properties.timestamp);
+                markers[vehicle.properties.vehicle_id].timestamp = vehicleTimestamp;
                 // Update the marker's position
                 updateExistingMarker(vehicle);
             }
