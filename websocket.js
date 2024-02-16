@@ -33,8 +33,23 @@ let hour = pst.getHours();
 // Get the URL parameters
 let params = new URLSearchParams(window.location.search);
 
-// Get the zoom level from the URL parameters, or default to 9
-let zoom = params.get('zoom') || 9;
+let zoom = params.get('zoom');
+
+// If no zoom parameter is provided, set the zoom level based on the viewport's width
+if (!zoom) {
+  let width = window.innerWidth;
+
+  if (width <= 768) {
+    // Phones
+    zoom = 8;
+  } else if (width <= 1280) {
+    // Medium devices
+    zoom = 9;
+  } else {
+    // Large devices
+    zoom = 10;
+  }
+}
 
 // map setup
 let map = new maplibregl.Map({
@@ -481,11 +496,24 @@ function processVehicleData(data, features) {
     });
 }
 
+// This is your cleanup function
+function cleanupMarkers() {
+    const THREE_MINUTES_AGO = Date.now() - (3 * 60 * 1000);
+
+    for (let vehicle_id in markers) {
+        if (markers[vehicle_id].timestamp < THREE_MINUTES_AGO) {
+            delete markers[vehicle_id];
+        }
+    }
+}
+
+// Schedule the cleanup function to run every 3 minutes
+setInterval(cleanupMarkers, 3 * 60 * 1000);
 
 // Run every 5 minutes
 setInterval(() => {
     const now = Date.now();
-    const retentionPeriod = 5 * 60 * 1000; // 5 minutes
+    const retentionPeriod = 3 * 60 * 1000; // 5 minutes
 
     // Remove old entries from the features array
     features = features.filter(feature => now - feature.timestamp <= retentionPeriod);
@@ -496,7 +524,7 @@ setInterval(() => {
             delete markers[vehicleId];
         }
     }
-    }, 5 * 60 * 1000);
+    }, 3 * 60 * 1000);
 
     let arrowSvg;
     function updateExistingMarker(vehicle) {
