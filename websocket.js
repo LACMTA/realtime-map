@@ -134,10 +134,7 @@ map.addSource('openmaptiles', {
     type: 'vector',
 });
 
-map.addSource('vehicles', {
-    type: 'geojson',
-    data: apiUrl,
-});
+
 
     map.addLayer(
         {
@@ -268,7 +265,7 @@ function processAndUpdate(data) {
     if (!data.vehicle || !data.vehicle.trip) {
         return;
     }
-
+    document.getElementById('loading').style.display = 'none';
     let feature = {
         type: "Feature",
         properties: {
@@ -500,11 +497,29 @@ function processVehicleData(data, features) {
 function cleanupMarkers() {
     const THREE_MINUTES_AGO = Date.now() - (3 * 60 * 1000);
 
+    // Clean up markers object
     for (let vehicle_id in markers) {
         if (markers[vehicle_id].timestamp < THREE_MINUTES_AGO) {
             delete markers[vehicle_id];
         }
     }
+
+    // Clean up pending animations
+    for (let vehicle_id in pendingAnimations) {
+        if (pendingAnimations[vehicle_id].timestamp < THREE_MINUTES_AGO) {
+            delete pendingAnimations[vehicle_id];
+        }
+    }
+
+    // Clean up markers on the map layer
+    map.eachLayer(function(layer) {
+        if (layer instanceof maplibregl.Marker) {
+            let vehicle_id = layer.getElement().dataset.vehicleId;
+            if (markers[vehicle_id] && markers[vehicle_id].timestamp < THREE_MINUTES_AGO) {
+                map.removeLayer(layer);
+            }
+        }
+    });
 }
 
 // Schedule the cleanup function to run every 3 minutes
