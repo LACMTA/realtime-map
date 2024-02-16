@@ -373,6 +373,7 @@ function setupWebSocket(url, processData) {
             pendingData = data;
         } else if (document.hidden) {
             // If the document is not visible, disregard all pending data
+            cleanupData();
             pendingData = null;
         } else {
             processAndUpdate(data);
