@@ -199,7 +199,7 @@ window.onload = function() {
             this.classList.toggle('hidden');
 
             // Change the icon based on the visibility
-            toggleLegend.innerHTML = this.classList.contains('hidden') ? '<i class="fas fa-chevron-right"></i>' : '<i class="fas fa-chevron-left"></i>';
+            toggleLegend.innerHTML = this.classList.contains('hidden') ? '<i class="fas fa-chevron-left"></i>' : '<i class="fas fa-chevron-right"></i>';
         });
     } else {
         console.error('Element not found');
