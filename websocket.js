@@ -33,8 +33,23 @@ let hour = pst.getHours();
 // Get the URL parameters
 let params = new URLSearchParams(window.location.search);
 
-// Get the zoom level from the URL parameters, or default to 9
-let zoom = params.get('zoom') || 9;
+let zoom = params.get('zoom');
+
+// If no zoom parameter is provided, set the zoom level based on the viewport's width
+if (!zoom) {
+  let width = window.innerWidth;
+
+  if (width <= 768) {
+    // Phones
+    zoom = 8;
+  } else if (width <= 1280) {
+    // Medium devices
+    zoom = 9;
+  } else {
+    // Large devices
+    zoom = 10;
+  }
+}
 
 // map setup
 let map = new maplibregl.Map({
