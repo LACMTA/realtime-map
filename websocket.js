@@ -479,17 +479,36 @@ function updateUI() {
 }
 
 function processVehicleData(data, features) {
+    const currentTimestamp = Math.floor(Date.now() / 1000); // Get current timestamp in seconds
+
     data.features.filter(vehicle => vehicle.properties && vehicle.properties.trip_id).forEach(vehicle => {
+        const vehicleTimestamp = parseInt(vehicle.properties.timestamp);
+
+        // Check if the data is older than 1 minute
+        if (currentTimestamp - vehicleTimestamp > 60) {
+            return; // Skip this vehicle data
+        }
+
         if (markers[vehicle.properties.vehicle_id]) {
             // Check if the new timestamp is newer than the current marker's timestamp
-            if (parseInt(vehicle.properties.timestamp) > parseInt(markers[vehicle.properties.vehicle_id].timestamp)){
+            if (vehicleTimestamp > parseInt(markers[vehicle.properties.vehicle_id].timestamp)){
                 // Update the marker's timestamp
-                markers[vehicle.properties.vehicle_id].timestamp = parseInt(vehicle.properties.timestamp);
+                markers[vehicle.properties.vehicle_id].timestamp = vehicleTimestamp;
                 // Update the marker's position
                 updateExistingMarker(vehicle);
             }
         } else {
-            createNewMarker(vehicle, features);
+            // Check if a marker with the same vehicle_id already exists
+            const existingMarker = Object.values(markers).find(marker => marker.vehicle_id === vehicle.properties.vehicle_id);
+            if (existingMarker) {
+                // If the new timestamp is newer, delete the old marker and create a new one
+                if (vehicleTimestamp > parseInt(existingMarker.timestamp)) {
+                    delete markers[existingMarker.vehicle_id];
+                    createNewMarker(vehicle, features);
+                }
+            } else {
+                createNewMarker(vehicle, features);
+            }
         }
     });
 }
