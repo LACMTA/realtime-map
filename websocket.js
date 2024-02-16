@@ -30,15 +30,19 @@ let pst = new Date(now.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}
 // Get the current hour in PST
 let hour = pst.getHours();
 
-// map setup
+// Get the URL parameters
+let params = new URLSearchParams(window.location.search);
 
+// Get the zoom level from the URL parameters, or default to 9
+let zoom = params.get('zoom') || 9;
+
+// map setup
 let map = new maplibregl.Map({
     container: 'map',
     center: [-118.25133692966446, 34.00095151499077], 
-    zoom: 9,
+    zoom: zoom,
     pitch: 0,
     bearing: 0,
-    container: 'map',
     antialias: true,
     minZoom: 8, // Minimum zoom level
     style: `https://basemapstyles-api.arcgis.com/arcgis/rest/services/styles/v2/styles/items/${basemapEnum}?token=${ESRI_KEY}`,
@@ -396,8 +400,8 @@ map.on('load', function() {
     // Set up the WebSocket connection and the onmessage event handler here
     setupWebSocket();
     // Set the zoom level based on the screen width
-    if (screenWidth > 1440) { // Change 1440 to whatever width you consider "large"
-        map.setZoom(10); // Change 10 to the zoom level you want for large screens
+    if (screenWidth > 2000) { // Change 1440 to whatever width you consider "large"
+        map.setZoom(12); // Change 10 to the zoom level you want for large screens
     } else {
         map.setZoom(9); // Change 5 to the zoom level you want for smaller screens
     }
