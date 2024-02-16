@@ -481,6 +481,19 @@ function processVehicleData(data, features) {
     });
 }
 
+// This is your cleanup function
+function cleanupMarkers() {
+    const THREE_MINUTES_AGO = Date.now() - (3 * 60 * 1000);
+
+    for (let vehicle_id in markers) {
+        if (markers[vehicle_id].timestamp < THREE_MINUTES_AGO) {
+            delete markers[vehicle_id];
+        }
+    }
+}
+
+// Schedule the cleanup function to run every 3 minutes
+setInterval(cleanupMarkers, 3 * 60 * 1000);
 
 // Run every 5 minutes
 setInterval(() => {
