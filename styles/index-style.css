@@ -13,6 +13,30 @@ body {
     right: 0;
 }
 
+#legend-mini {
+    position: relative;
+    bottom: 26px;
+    width: 240px;
+    height: 70px;
+    
+    margin: 0px auto;
+    padding: 8px 24px 8px 16px;
+
+    display: none;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+
+    border-radius: 64px;
+    background-color: #fff;
+}
+
+#legend-mini-logo {
+    display: flex;
+    flex-direction: column;
+}
+
 #legend-container {
     position: relative;
     width: 240px;
@@ -24,6 +48,14 @@ body {
 
 #legend {
     padding: 16px;
+}
+
+#legend-close {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 16px;
+    cursor: pointer;
 }
 
 .dot {
