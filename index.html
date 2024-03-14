@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-BK2E8DN75J"></script>
     <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
 
-    gtag('config', 'G-BK2E8DN75J');
+        gtag('config', 'G-BK2E8DN75J');
     </script>
 
     <title>Metro Live Map - Beta</title>
@@ -16,90 +17,116 @@
     <meta property="og:description" content="Live map of Los Angeles Metro busways and trains." />
     <meta charset='utf-8'>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-  
+
     <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css' />
-  <script src='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js'></script>
+    <script src='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js'></script>
 
-  <script src="https://unpkg.com/mapbox-gl-esri-sources@0.0.7/dist/mapbox-gl-esri-sources.js"></script>
-  <!-- Include the Font Awesome library -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Open+Sans&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/mapbox-gl-esri-sources@0.0.7/dist/mapbox-gl-esri-sources.js"></script>
+    <!-- Include the Font Awesome library -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="styles/index-style.css">
+    <link rel="stylesheet" href="styles/index-style.css">
 </head>
+
 <body>
-    
-    <div id="loading" style="cursor:default;position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 10px; background-color: rgba(0, 0, 0, 0.5); color: white; border-radius: 5px; z-index: 9999;">
-    Loading live data 
-    <span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
-</div>
 
+    <div id="loading"
+        style="cursor:default;position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 10px; background-color: rgba(0, 0, 0, 0.5); color: white; border-radius: 5px; z-index: 9999;">
+        Loading live data
+        <span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
+    </div>
 
-<div id="map"></div>
+    <div id="map"></div>
 
-<script>
-
-
+    <script>
     </script>
     <div id="update-time"></div>
 
-
-    <div id="legend" style="background-color: #fff; padding: 10px; position: absolute; bottom: 50px; right: 10px; z-index: 1; transition: right 0.5s;">
-        <h4> Metro Live Map <span class="beta">Beta</span></h4>
-        <div style="display: flex; align-items: center;">
-            <img src="https://lacmta.github.io/metro-iconography/Arrow.svg" width="20" height="20" style="transform: rotate(-90deg); margin-right: 10px; margin-left: 10px;">
-            Vehicle
+    <div id="legend-positioner">
+        <div id="legend-container">
+            <div id="legend">
+                <h4> Metro Live Map <span class="beta">Beta</span></h4>
+                <div style="display: flex; align-items: center;">
+                    <img src="https://lacmta.github.io/metro-iconography/Arrow.svg" width="20" height="20"
+                        style="transform: rotate(-90deg); margin-right: 10px; margin-left: 10px;">
+                    Vehicle
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <span style="background-color: #0072BC; display: inline-block; width: 10px; height: 4px;"></span>
+                    <img src="https://lacmta.github.io/metro-iconography/Service_ALine.svg" alt="A" width="20"
+                        height="20">
+                    <span
+                        style="background-color: #0072BC; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span>
+                    A Line
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <span style="background-color: #EB131B; display: inline-block; width: 10px; height: 4px;"></span>
+                    <img src="https://lacmta.github.io/metro-iconography/Service_BLine.svg" alt="B" width="20"
+                        height="20">
+                    <span
+                        style="background-color: #EB131B; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span>
+                    B Line
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <span style="background-color: #58A738; display: inline-block; width: 10px; height: 4px;"></span>
+                    <img src="https://lacmta.github.io/metro-iconography/Service_CLine.svg" alt="C" width="20"
+                        height="20">
+                    <span
+                        style="background-color: #58A738; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span>
+                    C Line
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <span style="background-color: #A05DA5; display: inline-block; width: 10px; height: 4px;"></span>
+                    <img src="https://lacmta.github.io/metro-iconography/Service_DLine.svg" alt="D" width="20"
+                        height="20">
+                    <span
+                        style="background-color: #A05DA5; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span>
+                    D Line
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <span style="background-color: #FDB913; display: inline-block; width: 10px; height: 4px;"></span>
+                    <img src="https://lacmta.github.io/metro-iconography/Service_ELine2.svg" alt="E" width="20"
+                        height="20">
+                    <span
+                        style="background-color: #FDB913; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span>
+                    E Line
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <span style="background-color: #E56DB1; display: inline-block; width: 10px; height: 4px;"></span>
+                    <img src="https://lacmta.github.io/metro-iconography/Service_KLine.svg" alt="K" width="20"
+                        height="20">
+                    <span
+                        style="background-color: #E56DB1; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span>
+                    K Line
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <span
+                        style="background-color: #ADB8BF; color: #000000;display: inline-block; width: 10px; height: 4px;"></span>
+                    <img src="https://lacmta.github.io/metro-iconography/Service_JLine.svg" alt="J" width="20"
+                        height="20">
+                    <span
+                        style="background-color: #ADB8BF; color: #000000;display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span>
+                    J Line
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <span style="background-color: #FC4C02; display: inline-block; width: 10px; height: 4px;"></span>
+                    <img src="https://lacmta.github.io/metro-iconography/Service_GLine.svg" alt="G" width="20"
+                        height="20">
+                    <span
+                        style="background-color: #FC4C02; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span>
+                    G Line
+                </div>
+                <div style="display: flex; align-items: center;">
+                </div>
+                <div style="display: flex; justify-content: flex-end; align-items: center; font-size: 0.8em;">
+                    <a href="https://forms.office.com/g/nMMFuK5QYe" style="text-decoration: none; color: #888;"
+                        target="_blank">Give us your thoughts!</a>
+                </div>
+            </div>
         </div>
-        <div style="display: flex; align-items: center;">
-            <span style="background-color: #0072BC; display: inline-block; width: 10px; height: 4px;"></span>
-            <img src="https://lacmta.github.io/metro-iconography/Service_ALine.svg" alt="A" width="20" height="20">
-            <span style="background-color: #0072BC; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> A Line
-        </div>
-        <div style="display: flex; align-items: center;">
-            <span style="background-color: #EB131B; display: inline-block; width: 10px; height: 4px;"></span>
-            <img src="https://lacmta.github.io/metro-iconography/Service_BLine.svg" alt="B" width="20" height="20">
-            <span style="background-color: #EB131B; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> B Line
-        </div>
-        <div style="display: flex; align-items: center;">
-            <span style="background-color: #58A738; display: inline-block; width: 10px; height: 4px;"></span>
-            <img src="https://lacmta.github.io/metro-iconography/Service_CLine.svg" alt="C" width="20" height="20">
-            <span style="background-color: #58A738; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> C Line
-        </div>
-        <div style="display: flex; align-items: center;">
-            <span style="background-color: #A05DA5; display: inline-block; width: 10px; height: 4px;"></span>
-            <img src="https://lacmta.github.io/metro-iconography/Service_DLine.svg" alt="D" width="20" height="20">
-            <span style="background-color: #A05DA5; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> D Line
-        </div>
-        <div style="display: flex; align-items: center;">
-            <span style="background-color: #FDB913; display: inline-block; width: 10px; height: 4px;"></span>
-            <img src="https://lacmta.github.io/metro-iconography/Service_ELine2.svg" alt="E" width="20" height="20">
-            <span style="background-color: #FDB913; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> E Line
-        </div>
-        <div style="display: flex; align-items: center;">
-            <span style="background-color: #E56DB1; display: inline-block; width: 10px; height: 4px;"></span>
-            <img src="https://lacmta.github.io/metro-iconography/Service_KLine.svg" alt="K" width="20" height="20">
-            <span style="background-color: #E56DB1; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> K Line
-        </div>
-        <div style="display: flex; align-items: center;">
-            <span style="background-color: #ADB8BF; color: #000000;display: inline-block; width: 10px; height: 4px;"></span>
-            <img src="https://lacmta.github.io/metro-iconography/Service_JLine.svg" alt="J" width="20" height="20">
-            <span style="background-color: #ADB8BF; color: #000000;display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> J Line
-        </div>
-        <div style="display: flex; align-items: center;">
-            <span style="background-color: #FC4C02; display: inline-block; width: 10px; height: 4px;"></span>
-            <img src="https://lacmta.github.io/metro-iconography/Service_GLine.svg" alt="G" width="20" height="20">
-            <span style="background-color: #FC4C02; display: inline-block; width: 10px; height: 4px;margin-right: 8px;"></span> G Line
-        </div>
-        <div style="display: flex; align-items: center;">
-        </div>
-    <div style="display: flex; justify-content: flex-end; align-items: center; font-size: 0.8em;">
-        <a href="https://forms.office.com/g/nMMFuK5QYe" style="text-decoration: none; color: #888;" target="_blank">Give us your thoughts!</a>
     </div>
-        <button id="toggle-legend"><i class="fas fa-chevron-right"></i></button>
-    </div>
-
-
-</div>
 </body>
 <script src="websocket.js"></script>
+
 </html>
