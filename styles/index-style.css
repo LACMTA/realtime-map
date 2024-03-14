@@ -74,31 +74,16 @@ body {
     /* Add this line */
 }
 
-@keyframes slideAway {
-    0% {
-        transform: translateX(0);
-    }
-
-    60% {
-        transform: translateX(20%);
-    }
-
-    100% {
-        transform: translateX(100%);
-    }
-}
-
-
 @media (min-width: 600px) {
-    #legend {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
+    #legend-close {
+        display: none;
     }
-}
-
-#legend.hidden {
-    animation: slideAway .5s forwards;
-    padding-left: 30px;
+    
+    #legend-container {
+        margin: 0;
+        position: fixed;
+        right: 16px;
+    }
 }
 
 @keyframes dot {
@@ -113,30 +98,6 @@ body {
         opacity: 1;
     }
 }
-
-#toggle-legend {
-    position: absolute;
-    left: -30px;
-    /* Adjust as needed */
-    top: 0;
-    bottom: 0;
-    width: 30px;
-    /* Adjust as needed */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2;
-    background-color: #fff;
-    /* Adjust as needed */
-    border: none;
-    cursor: pointer;
-}
-
-#toggle-legend i {
-    font-size: 12px;
-    /* Adjust as needed */
-}
-
 
 .dot:nth-child(2) {
     animation-delay: 0.2s;
