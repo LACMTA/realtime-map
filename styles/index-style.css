@@ -1,4 +1,15 @@
+html {
+    font-family: 'Open Sans', sans-serif;
+    font-weight: 400;
+    font-style: normal;
+    font-size: 16px;
+    line-height: 1.5rem;
+    color: #575757;
+    height: 100%;
+}
+
 body {
+    height: 100%;
     margin: 0;
     padding: 0;
     font-family: 'Open Sans', sans-serif;
@@ -35,11 +46,12 @@ body {
 #legend-mini-logo {
     display: flex;
     flex-direction: column;
+    align-items: center;
 }
 
 #legend-container {
     position: relative;
-    width: 240px;
+    width: 198px;
     bottom: 26px;
     margin: 0px auto;
     background-color: #fff;
@@ -58,6 +70,59 @@ body {
     cursor: pointer;
 }
 
+#legend-header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    padding-bottom: 8px;
+}
+
+#legend-title {
+    font-family: 'ff-scala-sans-pro', sans-serif;
+    display: flex;
+    flex-direction: row;
+    gap: 2px;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 24px;
+    align-items: center;
+}
+
+.beta {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex-shrink: 0;
+
+    color: #fff;
+    background-color: #FF4500;
+    font-weight: 700;
+    font-size: 10px;
+    width: 23px;
+    height: 14px;
+    text-align: center;
+    line-height: 20px;
+    border-radius: 4px;
+}
+
+#legend-description {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+    color: #404040;
+}
+
+#legend hr {
+    color: #f3f3f3;
+    background-color: #f3f3f3;
+    border: none;
+    height: 1px;
+    flex-grow: 1;
+    width: 100%;
+}
+
+
 #legend-icons {
     display: flex;
     flex-wrap: wrap;
@@ -69,6 +134,26 @@ body {
 #legend-icons img {
     width: 32px;
     height: 32px;
+}
+
+#legend-share {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 2px;
+    margin-top: 12px;
+}
+
+#legend-share a {
+    text-decoration: none;
+    font-size: 10px;
+    color: #000;
+}
+
+#legend-share a:hover, #legend-share a:active {
+    text-decoration: underline;
+    color: #000;
 }
 
 .marker {
@@ -145,22 +230,6 @@ body {
     animation: dot 1s 0.66s infinite;
 }
 
-.beta {
-    display: inline-block;
-    color: #fff;
-    /* White text color */
-    background-color: #FF4500;
-    /* Orange background color */
-    font-size: 0.8em;
-    /* Smaller font size */
-    padding: 2px 6px;
-    /* Padding to make the text look like it's inside a badge */
-    border-radius: 4px;
-    /* Rounded corners */
-}
-
-html,
-body,
 #map {
     height: 100%;
 }

@@ -18,6 +18,9 @@
     <meta charset='utf-8'>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
+    <link rel="stylesheet" href="https://use.typekit.net/goe1fni.css">
+
+
     <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css' />
     <script src='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js'></script>
 
@@ -47,7 +50,7 @@
         <div id="legend-mini">
             <div id="legend-mini-logo">
                 <img src="images/metro_logo_only_black.png" alt="Metro Logo" width="36" height="36">
-                <span class="beta">Beta</span>
+                <div class="beta">Beta</div>
             </div>
             <div>
                 Metro Live Map
@@ -64,9 +67,17 @@
                     </g>
                 </svg>
             <div id="legend">
-                <img src="images/metro_logo_only_black.png" alt="Metro Logo" width="24" height="24">
-                <h4> Metro Live Map <span class="beta">Beta</span></h4>
-                
+                <div id="legend-header">
+                    <img src="images/metro_logo_only_black.png" alt="Metro Logo" width="40">
+                    <div id="legend-title">
+                        <div>Metro Live Map</div>
+                        <div class="beta">Beta</div>
+                    </div>
+                    <div id="legend-description">
+                        Updates every 5-10 seconds
+                    </div>
+                </div>
+                <hr>
                 <div id="legend-icons">
                     <img src="https://lacmta.github.io/metro-iconography/Service_ALine.svg" alt="A Line icon">
                     <img src="https://lacmta.github.io/metro-iconography/Service_BLine.svg" alt="B Line icon">
@@ -78,9 +89,15 @@
                     <img src="https://lacmta.github.io/metro-iconography/Service_JLine.svg" alt="J Line icon">
                 </div>
 
-                <div style="display: flex; justify-content: flex-end; align-items: center; font-size: 0.8em;">
-                    <a href="https://forms.office.com/g/nMMFuK5QYe" style="text-decoration: none; color: #888;"
-                        target="_blank">Give us your thoughts!</a>
+                <div id="legend-share">
+                    <a href="https://forms.office.com/g/nMMFuK5QYe" target="_blank">Share your thoughts!</a>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="13" viewBox="0 0 12 13" fill="none">
+                        <path
+                            d="M9 7V10C9 10.2652 8.89464 10.5196 8.70711 10.7071C8.51957 10.8946 8.26522 11 8 11H2.5C2.23478 11 1.98043 10.8946 1.79289 10.7071C1.60536 10.5196 1.5 10.2652 1.5 10V4.5C1.5 4.23478 1.60536 3.98043 1.79289 3.79289C1.98043 3.60536 2.23478 3.5 2.5 3.5H5.5"
+                            stroke="black" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M7.5 2H10.5V5" stroke="black" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M5 7.5L10.5 2" stroke="black" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
                 </div>
             </div>
         </div>
