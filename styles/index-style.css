@@ -58,8 +58,17 @@ body {
     cursor: pointer;
 }
 
-.dot {
-    animation: dot 1s infinite;
+#legend-icons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex-direction: row;
+    justify-content: center;
+}
+
+#legend-icons img {
+    width: 32px;
+    height: 32px;
 }
 
 .marker {
@@ -84,6 +93,10 @@ body {
         position: fixed;
         right: 16px;
     }
+}
+
+.dot {
+    animation: dot 1s infinite;
 }
 
 @keyframes dot {
