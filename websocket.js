@@ -793,3 +793,8 @@ map.addControl(geolocate, 'top-left');
 geolocate.on('geolocate', function(e) {
     map.flyTo({center: [e.coords.longitude, e.coords.latitude], zoom: 14});
 });
+
+
+map.addControl(new maplibregl.AttributionControl({
+    compact: true
+}));
