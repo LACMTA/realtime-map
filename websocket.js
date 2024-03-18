@@ -232,6 +232,22 @@ let animations = {};
 let isAnimating = false;
 let pendingData = null;
 
+
+function removeOldMarkers() {
+    const now = new Date();
+    for (let id in markers) {
+        if (now - new Date(markers[id].timestamp * 1000) > 60000) { // 60000 milliseconds = 1 minute
+            // Remove the marker from the map
+            markers[id].remove(); // Call the remove method directly on the marker object
+            // Remove the marker from our object
+            delete markers[id];
+        }
+    }
+}
+
+// Run `removeOldMarkers` every minute
+setInterval(removeOldMarkers, 60000);
+
 function animateMarker(vehicle, diffLng, diffLat, steps, currentCoordinates) {
     return new Promise(resolve => {
         let i = 0;
@@ -312,17 +328,6 @@ function processAndUpdate(data) {
     updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
     updateTimeDiv.style.fontSize = '12px';
 
-    // Start the animation
-    isAnimating = true;
-    animateMarker().then(() => {
-        isAnimating = false;
-
-        // If new data has arrived while the animation was running, process it now
-        if (pendingData) {
-            processAndUpdate(pendingData);
-            pendingData = null;
-        }
-    });
 }
 function setupWebSocket(url, processData) {
     let socket = new WebSocket(url);
@@ -421,10 +426,20 @@ map.on('load', function() {
 });
 
 function updateMap(features) {
-    map.getSource('vehicles').setData({
-        type: 'FeatureCollection',
-        features: features
-    });
+	if (!map.getSource('vehicles')) {
+		map.addSource('vehicles', {
+			type: 'geojson',
+			data: {
+				type: 'FeatureCollection',
+				features: features
+			}
+		});
+	} else {
+		map.getSource('vehicles').setData({
+			type: 'FeatureCollection',
+			features: features
+		});
+	}
 }
 
 function getFeaturesFromData(data) {
@@ -462,12 +477,12 @@ function updateUI() {
     if (Object.keys(markers).length > 1) {
         hideLoadingDiv();
     }
-    }
-    function hideLoadingDiv() {
+}
+function hideLoadingDiv() {
     document.getElementById('loading').style.display = 'none';
     }
 
-    function removeOldMarkers(newVehicleIds, data) {
+function removeOldMarkersFromUI(newVehicleIds, data) {
     if (data.features.length > 0) {
         for (let vehicle_id in markers) {
             if (!newVehicleIds.has(vehicle_id)) {
@@ -545,10 +560,10 @@ function cleanupMarkers() {
 // Schedule the cleanup function to run every 3 minutes
 setInterval(cleanupMarkers, 3 * 60 * 1000);
 
-// Run every 5 minutes
+// Run every 3 minutes
 setInterval(() => {
     const now = Date.now();
-    const retentionPeriod = 3 * 60 * 1000; // 5 minutes
+    const retentionPeriod = 3 * 60 * 1000; // 3 minutes
 
     // Remove old entries from the features array
     features = features.filter(feature => now - feature.timestamp <= retentionPeriod);
@@ -559,10 +574,11 @@ setInterval(() => {
             delete markers[vehicleId];
         }
     }
-    }, 3 * 60 * 1000);
+}, 3 * 60 * 1000);
 
-    let arrowSvg;
-    function updateExistingMarker(vehicle) {
+let arrowSvg;
+
+function updateExistingMarker(vehicle) {
     const marker = markers[vehicle.properties.vehicle_id];
     let currentCoordinates = marker.getLngLat();
 
@@ -793,8 +809,3 @@ map.addControl(geolocate, 'top-left');
 geolocate.on('geolocate', function(e) {
     map.flyTo({center: [e.coords.longitude, e.coords.latitude], zoom: 14});
 });
-
-
-map.addControl(new maplibregl.AttributionControl({
-    compact: true
-}));
