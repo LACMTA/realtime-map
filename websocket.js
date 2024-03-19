@@ -533,54 +533,60 @@ function processVehicleData(data, features) {
 		}
 	});
 }
-
-// This is your cleanup function
 function cleanupMarkers() {
-    const THREE_MINUTES_AGO = Date.now() - (3 * 60 * 1000);
+	const ONE_MINUTE_AGO = Date.now() - (1 * 60 * 1000);
 
-    // Clean up markers object
-    for (let vehicle_id in markers) {
-        if (markers[vehicle_id].timestamp < THREE_MINUTES_AGO) {
-            delete markers[vehicle_id];
-        }
-    }
+	// Clean up markers object
+	for (let vehicle_id in markers) {
+		if (markers[vehicle_id].timestamp < ONE_MINUTE_AGO) {
+			markers[vehicle_id].remove(); // Remove the marker from the map
+			delete markers[vehicle_id]; // Delete the marker from the markers object
+		}
+	}
 
-    // Clean up pending animations
-    for (let vehicle_id in pendingAnimations) {
-        if (pendingAnimations[vehicle_id].timestamp < THREE_MINUTES_AGO) {
-            delete pendingAnimations[vehicle_id];
-        }
-    }
+	// Clean up pending animations
+	for (let vehicle_id in pendingAnimations) {
+		if (pendingAnimations[vehicle_id].timestamp < ONE_MINUTE_AGO) {
+			delete pendingAnimations[vehicle_id];
+		}
+	}
 
-    // Clean up markers on the map layer
-    map.eachLayer(function(layer) {
-        if (layer instanceof maplibregl.Marker) {
-            let vehicle_id = layer.getElement().dataset.vehicleId;
-            if (markers[vehicle_id] && markers[vehicle_id].timestamp < THREE_MINUTES_AGO) {
-                map.removeLayer(layer);
-            }
-        }
-    });
+	// Clean up markers on the map layer
+	map.eachLayer(function(layer) {
+		if (layer instanceof maplibregl.Marker) {
+			let vehicle_id = layer.getElement().dataset.vehicleId;
+			if (!markers[vehicle_id]) {
+				layer.remove(); // Remove the marker from the map
+			}
+		}
+	});
 }
-
 // Schedule the cleanup function to run every 3 minutes
-setInterval(cleanupMarkers, 3 * 60 * 1000);
-
+setInterval(cleanupMarkers, 1 * 60 * 1000);
 // Run every 3 minutes
 setInterval(() => {
-    const now = Date.now();
-    const retentionPeriod = 3 * 60 * 1000; // 3 minutes
+	const now = Date.now();
+	const retentionPeriod = 1 * 60 * 1000; // 3 minutes
 
-    // Remove old entries from the features array
-    features = features.filter(feature => now - feature.timestamp <= retentionPeriod);
+	// Remove old entries from the features array
+	features = features.filter(feature => now - feature.timestamp <= retentionPeriod);
 
-    // Remove old entries from the markers object
-    for (const [vehicleId, marker] of Object.entries(markers)) {
-        if (now - marker.timestamp > retentionPeriod) {
-            delete markers[vehicleId];
-        }
-    }
-}, 3 * 60 * 1000);
+	// Remove old entries from the markers object
+	for (const [vehicleId, marker] of Object.entries(markers)) {
+		if (now - marker.timestamp > retentionPeriod) {
+			// Clear the popup update interval before deleting the marker
+			if (marker.popupUpdateInterval) {
+				clearInterval(marker.popupUpdateInterval);
+			}
+
+			// Remove the marker from the map
+			marker.remove();
+
+			// Delete the marker from the markers object
+			delete markers[vehicleId];
+		}
+	}
+}, 1 * 60 * 1000);
 
 let arrowSvg;
 
