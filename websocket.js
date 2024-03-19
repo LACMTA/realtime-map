@@ -492,40 +492,46 @@ function removeOldMarkersFromUI(newVehicleIds, data) {
         }
     }
 }
-
 function processVehicleData(data, features) {
-    const currentTimestamp = Math.floor(Date.now() / 1000); // Get current timestamp in seconds
+	const currentTimestamp = Math.floor(Date.now() / 1000); // Get current timestamp in seconds
 
-    data.features.filter(vehicle => vehicle.properties && vehicle.properties.trip_id).forEach(vehicle => {
-        const vehicleTimestamp = parseInt(vehicle.properties.timestamp);
+	data.features.filter(vehicle => vehicle.properties && vehicle.properties.trip_id).forEach(vehicle => {
+		const vehicleTimestamp = parseInt(vehicle.properties.timestamp);
 
-        // Check if the data is older than 1 minute
-        if (currentTimestamp - vehicleTimestamp > 60) {
-            return; // Skip this vehicle data
-        }
+		// Check if the data is older than 1 minute
+		if (currentTimestamp - vehicleTimestamp > 60) {
+			return; // Skip this vehicle data
+		}
 
-        if (markers[vehicle.properties.vehicle_id]) {
-            // Check if the new timestamp is newer than the current marker's timestamp
-            if (vehicleTimestamp > parseInt(markers[vehicle.properties.vehicle_id].timestamp)){
-                // Update the marker's timestamp
-                markers[vehicle.properties.vehicle_id].timestamp = vehicleTimestamp;
-                // Update the marker's position
-                updateExistingMarker(vehicle);
-            }
-        } else {
-            // Check if a marker with the same vehicle_id already exists
-            const existingMarker = Object.values(markers).find(marker => marker.vehicle_id === vehicle.properties.vehicle_id);
-            if (existingMarker) {
-                // If the new timestamp is newer, delete the old marker and create a new one
-                if (vehicleTimestamp > parseInt(existingMarker.timestamp)) {
-                    delete markers[existingMarker.vehicle_id];
-                    createNewMarker(vehicle, features);
-                }
-            } else {
-                createNewMarker(vehicle, features);
-            }
-        }
-    });
+		if (markers[vehicle.properties.vehicle_id]) {
+			// Check if the new timestamp is newer than the current marker's timestamp
+			if (vehicleTimestamp > parseInt(markers[vehicle.properties.vehicle_id].timestamp)){
+				// Update the marker's timestamp
+				markers[vehicle.properties.vehicle_id].timestamp = vehicleTimestamp;
+
+				// Clear the previous interval and update the popup
+				if (markers[vehicle.properties.vehicle_id].popupUpdateInterval) {
+					clearInterval(markers[vehicle.properties.vehicle_id].popupUpdateInterval);
+				}
+				updatePopup(vehicle);
+
+				// Update the marker's position
+				updateExistingMarker(vehicle);
+			}
+		} else {
+			// Check if a marker with the same vehicle_id already exists
+			const existingMarker = Object.values(markers).find(marker => marker.vehicle_id === vehicle.properties.vehicle_id);
+			if (existingMarker) {
+				// If the new timestamp is newer, delete the old marker and create a new one
+				if (vehicleTimestamp > parseInt(existingMarker.timestamp)) {
+					delete markers[existingMarker.vehicle_id];
+					createNewMarker(vehicle, features);
+				}
+			} else {
+				createNewMarker(vehicle, features);
+			}
+		}
+	});
 }
 
 // This is your cleanup function
@@ -614,35 +620,29 @@ function updateExistingMarker(vehicle) {
     updatePopup(vehicle);
 }
 function updatePopup(vehicle) {
-	// Get the existing marker
-	let marker = markers[vehicle.properties.vehicle_id];
+    // Get the existing marker
+    let marker = markers[vehicle.properties.vehicle_id];
 
-	// Clear the previous interval
-	if (marker.popupUpdateInterval) {
-		clearInterval(marker.popupUpdateInterval);
-	}
-
-	// Check if the marker has a popup
-	let popup = marker.getPopup();
-	if (popup) {
-		// Start a new interval
-		marker.popupUpdateInterval = setInterval(() => {
-			popup.setHTML(`
-			<div style="display: flex; align-items: center;justify-content:center;">
-			<img src="${routeIcons[markers[vehicle.properties.vehicle_id].route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
-			<span></span>
-			</div>
-			 ${vehicle.properties.position_bearing !== undefined ? `Heading: ${vehicle.properties.position_bearing}°<br>` : ''}                    
-			${timeSinceUpdate(markers[vehicle.properties.vehicle_id].timestamp)}
-			`);
-		}, 1000); // refresh every second
-	}
+    // Check if the marker has a popup
+    let popup = marker.getPopup();
+    if (popup) {
+        // Start a new interval
+        marker.popupUpdateInterval = setInterval(() => {
+            popup.setHTML(`
+            <div style="display: flex; align-items: center;justify-content:center;">
+            <img src="${routeIcons[markers[vehicle.properties.vehicle_id].route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
+            <span></span>
+            </div>
+            ${timeSinceUpdate(markers[vehicle.properties.vehicle_id].timestamp)}
+            `);
+        }, 1000); // refresh every second
+    }
 }
 function timeSinceUpdate(timestamp) {
     const now = Date.now();
     const timeDifference = now - (timestamp * 1000); // convert timestamp to milliseconds
     const secondsAgo = Math.floor(timeDifference / 1000); // convert milliseconds to seconds
-    return `Last updated ${secondsAgo} seconds ago`;
+    return `Location <b>${secondsAgo} seconds</b> ago`;
 }
 
 
@@ -680,7 +680,6 @@ function createNewMarker(vehicle, features) {
         <img src="${routeIcons[vehicle.properties.route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
         <span></span>
         </div>        
-		${heading !== undefined ? `Heading: ${heading}° <br>` : ''}
         ${timeSinceUpdate(vehicle.properties.timestamp)}`);
     }, 1000); // refresh every second
 
