@@ -613,25 +613,40 @@ function updateExistingMarker(vehicle) {
     updateMarkerRotations();
     updatePopup(vehicle);
 }
-
 function updatePopup(vehicle) {
-    // Get the existing marker
-    let marker = markers[vehicle.properties.vehicle_id];
+	// Get the existing marker
+	let marker = markers[vehicle.properties.vehicle_id];
 
-    // Check if the marker has a popup
-    let popup = marker.getPopup();
-    if (popup) {
-        // Update the popup's HTML
-        popup.setHTML(`
-        <div style="display: flex; align-items: center;justify-content:center;">
-        <img src="${routeIcons[markers[vehicle.properties.vehicle_id].route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
-        <span></span>
-    </div>
-            Heading: ${vehicle.properties.position_bearing}°<br>                        
-            Data from: ${new Date(markers[vehicle.properties.vehicle_id].timestamp * 1000).toLocaleTimeString()}
-        `);
-    }
+	// Clear the previous interval
+	if (marker.popupUpdateInterval) {
+		clearInterval(marker.popupUpdateInterval);
+	}
+
+	// Check if the marker has a popup
+	let popup = marker.getPopup();
+	if (popup) {
+		// Start a new interval
+		marker.popupUpdateInterval = setInterval(() => {
+			popup.setHTML(`
+			<div style="display: flex; align-items: center;justify-content:center;">
+			<img src="${routeIcons[markers[vehicle.properties.vehicle_id].route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
+			<span></span>
+			</div>
+			 ${vehicle.properties.position_bearing !== undefined ? `Heading: ${vehicle.properties.position_bearing}°<br>` : ''}                    
+			${timeSinceUpdate(markers[vehicle.properties.vehicle_id].timestamp)}
+			`);
+		}, 1000); // refresh every second
+	}
 }
+function timeSinceUpdate(timestamp) {
+    const now = Date.now();
+    const timeDifference = now - (timestamp * 1000); // convert timestamp to milliseconds
+    const secondsAgo = Math.floor(timeDifference / 1000); // convert milliseconds to seconds
+    return `Last updated ${secondsAgo} seconds ago`;
+}
+
+
+let popupUpdateInterval; // Store the interval ID
 
 function createNewMarker(vehicle, features) {
     const el = document.createElement('div');
@@ -656,20 +671,26 @@ function createNewMarker(vehicle, features) {
     el.style.width = `${size}px`;
     el.style.height = `${size}px`;
 
-    const popup = new maplibregl.Popup()
-    .setHTML(`
-    <div style="display: flex; align-items: center;justify-content:center;">
-    <img src="${routeIcons[vehicle.properties.route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
-    <span></span>
-    </div>        
-    Heading: ${heading}°<br>
-    Data from ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}`);
+	const popup = new maplibregl.Popup();
 
-    const marker = new maplibregl.Marker({element: el, anchor: 'center'})
-        .setLngLat(vehicle.geometry.coordinates)
-        .setRotation(heading) // Rotate the marker
-        .setPopup(popup) // Set the popup
-        .addTo(map);
+    // Start a new interval to update the popup content
+    const popupUpdateInterval = setInterval(() => {
+        popup.setHTML(`
+        <div style="display: flex; align-items: center;justify-content:center;">
+        <img src="${routeIcons[vehicle.properties.route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
+        <span></span>
+        </div>        
+		${heading !== undefined ? `Heading: ${heading}° <br>` : ''}
+        ${timeSinceUpdate(vehicle.properties.timestamp)}`);
+    }, 1000); // refresh every second
+
+    // Store the interval ID in the marker object
+	const marker = new maplibregl.Marker({element: el, anchor: 'center'})
+		.setLngLat(vehicle.geometry.coordinates)
+		.setRotation(heading) // Rotate the marker
+		.setPopup(popup) // Set the popup
+		.addTo(map);
+    marker.popupUpdateInterval = popupUpdateInterval;
 
     marker.properties = {
         vehicle_id: vehicle.properties.vehicle_id,
