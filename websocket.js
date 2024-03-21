@@ -346,7 +346,7 @@ function setupWebSocket(url, processData) {
     socket.onerror = function(error) {
         console.error(error);
         document.getElementById('loading').style.display = 'block';
-        document.getElementById('loading').innerHTML = "Error loading data. Please check your connection or try again later.";
+        // document.getElementById('loading').innerHTML = "Error loading data. Please check your connection or try again later.";
     };
 
     socket.onclose = function(event) {
