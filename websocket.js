@@ -3,7 +3,10 @@ const MAPTILER_KEY = "KydZlIiVFdYDFFfQ4QYq"
 const basemapEnum = "65aff2873118478482ec3dec199e9058";
 
 let timer = setTimeout(() => {
-    document.getElementById('loading').innerHTML = "Sorry, loading timed out: we're currently unable to load data. Please check your connection or try again later.";
+	let loadingDiv = document.getElementById('loading');
+	loadingDiv.innerHTML = "Sorry, loading timed out: we're currently unable to load data. Please check your connection or try again later. Click anywhere to refresh.";
+	loadingDiv.style.cursor = "pointer";
+	loadingDiv.onclick = () => location.reload(true);
 }, 25000); // 25 seconds
 
 // Bounding box coordinates for Los Angeles County
