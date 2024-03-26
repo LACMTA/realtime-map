@@ -2,12 +2,12 @@ const ESRI_KEY =  "AAPKccc2cf38fecc47649e91529acf524abflSSkRTjWwH0AYmZi8jaRo-wdp
 const MAPTILER_KEY = "KydZlIiVFdYDFFfQ4QYq"
 const basemapEnum = "65aff2873118478482ec3dec199e9058";
 
-let timer = setTimeout(() => {
-	let loadingDiv = document.getElementById('loading');
-	loadingDiv.innerHTML = "Sorry, loading timed out: we're currently unable to load data. Please check your connection or try again later. Click anywhere to refresh.";
-	loadingDiv.style.cursor = "pointer";
-	loadingDiv.onclick = () => location.reload(true);
-}, 25000); // 25 seconds
+// let timer = setTimeout(() => {
+// 	// let loadingDiv = document.getElementById('loading');
+// 	// loadingDiv.innerHTML = "Sorry, loading timed out: we're currently unable to load data. Please check your connection or try again later. Click anywhere to refresh.";
+// 	loadingDiv.style.cursor = "pointer";
+// 	loadingDiv.onclick = () => location.reload(true);
+// }, 25000); // 25 seconds
 
 // Bounding box coordinates for Los Angeles County
 const LA_COUNTY_BOUNDS = {
@@ -26,6 +26,8 @@ let markers = {};
 
 // Get the current time
 const now = new Date();
+
+let isFirstDataLoad = true;
 
 // Convert the current time to PST
 let pst = new Date(now.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}));
@@ -236,20 +238,6 @@ let isAnimating = false;
 let pendingData = null;
 
 
-function removeOldMarkers() {
-    const now = new Date();
-    for (let id in markers) {
-        if (now - new Date(markers[id].timestamp * 1000) > 60000) { // 60000 milliseconds = 1 minute
-            // Remove the marker from the map
-            markers[id].remove(); // Call the remove method directly on the marker object
-            // Remove the marker from our object
-            delete markers[id];
-        }
-    }
-}
-
-// Run `removeOldMarkers` every minute
-setInterval(removeOldMarkers, 60000);
 
 function animateMarker(vehicle, diffLng, diffLat, steps, currentCoordinates) {
     return new Promise(resolve => {
@@ -265,9 +253,9 @@ function animateMarker(vehicle, diffLng, diffLat, steps, currentCoordinates) {
                 ]);
 
                 // Update the rotation of the marker
-                if (vehicle.properties && vehicle.properties.position_bearing) {
-                    markers[vehicle.properties.vehicle_id].setRotation(vehicle.properties.position_bearing);
-                }
+                // if (vehicle.properties && vehicle.properties.position_bearing) {
+                //     markers[vehicle.properties.vehicle_id].setRotation(vehicle.properties.position_bearing);
+                // }
 
                 i++;
                 animations[vehicle.properties.vehicle_id] = requestAnimationFrame(animate);
@@ -279,59 +267,6 @@ function animateMarker(vehicle, diffLng, diffLat, steps, currentCoordinates) {
     });
 }
 
-function processAndUpdate(data) {
-    // Check if the data has 'vehicle' and 'vehicle.trip' properties
-    if (!data.vehicle || !data.vehicle.trip) {
-        return;
-    }
-    document.getElementById('loading').style.display = 'none';
-    let feature = {
-        type: "Feature",
-        properties: {
-            id: data.vehicle.vehicle.id,
-            vehicle_id: data.vehicle.vehicle.id,
-            currentStatus: data.vehicle.currentStatus,
-            currentStopSequence: data.vehicle.currentStopSequence,
-            stopId: data.vehicle.stopId,
-            timestamp: parseInt(data.vehicle.timestamp),
-            route_code: data.route_code,
-            trip: data.vehicle.trip,
-            trip_id: data.vehicle.trip.tripId,
-            position_bearing: data.vehicle.position.bearing,
-            position_speed: data.vehicle.position.speed,
-            position_latitude: data.vehicle.position.latitude,
-            position_longitude: data.vehicle.position.longitude
-        },
-        geometry: {
-            type: "Point",
-            coordinates: [data.vehicle.position.longitude, data.vehicle.position.latitude]
-        }
-    };
-
-    let geojson = {
-        type: "FeatureCollection",
-        features: [feature]
-    };
-
-    const features = getFeaturesFromData(geojson);
-    let newVehicleIds = new Set([feature.properties.vehicle_id]);
-    let this_data = {features}
-    // removeOldMarkers(newVehicleIds, this_data);
-    processVehicleData(this_data, features);
-    updateMap(features);
-    updateUI();
-
-    // Get the current time
-    const now = new Date();
-
-    // Get the update time div
-    const updateTimeDiv = document.getElementById('update-time');
-
-    // Update the content of the update time div
-    updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
-    updateTimeDiv.style.fontSize = '12px';
-
-}
 function setupWebSocket(url, processData) {
     let socket = new WebSocket(url);
     let dataStore = {};
@@ -348,7 +283,7 @@ function setupWebSocket(url, processData) {
 
     socket.onerror = function(error) {
         console.error(error);
-        document.getElementById('loading').style.display = 'block';
+        document.getElementById('loading').style.display = 'none';
         // document.getElementById('loading').innerHTML = "Error loading data. Please check your connection or try again later.";
     };
 
@@ -358,35 +293,46 @@ function setupWebSocket(url, processData) {
         setTimeout(() => setupWebSocket(url, processData), 5000); // 5000 ms delay before reconnecting
     };
 
-    socket.onmessage = function(event) {
-        const currentTime = Date.now();
-        lastUpdateTime = currentTime;
 
-        // Process the update
-        let data = JSON.parse(event.data);
 
-        // Store the data with the current timestamp
-        dataStore[data.id] = {
-            data: data,
-            timestamp: Date.now()
-        };
+	socket.onmessage = function(event) {
+		const currentTime = Date.now();
+		lastUpdateTime = currentTime;
 
-        // Filter data based on routeId if a filter function is provided
-        if (processData) {
-            data = processData(data);
-        }
+		// Process the update
+		let data = JSON.parse(event.data);
 
-        // If an animation is currently running, store the data and wait
-        if (isAnimating) {
-            pendingData = data;
-        } else if (document.hidden) {
-            // If the document is not visible, disregard all pending data
-            cleanupData();
-            pendingData = null;
-        } else {
-            processAndUpdate(data);
-        }
-    };
+		// Store the data with the current timestamp
+		dataStore[data.id] = {
+			data: data,
+			timestamp: Date.now()
+		};
+
+		// Filter data based on routeId if a filter function is provided
+		if (processData) {
+			data = processData(data);
+		}
+
+		// If an animation is currently running, store the data and wait
+		if (isAnimating) {
+			pendingData = data;
+		} else if (document.hidden) {
+			// If the document is not visible, disregard all pending data
+			cleanupData();
+			pendingData = null;
+		} else {
+			processAndUpdate(data);
+		}
+
+		// Remove the loading div after the first data load
+		if (isFirstDataLoad) {
+			let loadingDiv = document.getElementById('loading');
+			if (loadingDiv) {
+				loadingDiv.parentNode.removeChild(loadingDiv);
+			}
+			isFirstDataLoad = false;
+		}
+	};
 
     // Handle visibility change
     document.addEventListener('visibilitychange', function() {
@@ -445,6 +391,58 @@ function updateMap(features) {
 	}
 }
 
+function processAndUpdate(data) {
+    // Check if the data has 'vehicle' and 'vehicle.trip' properties
+    if (!data.vehicle || !data.vehicle.trip) {
+        return;
+    }
+    let feature = {
+        type: "Feature",
+        properties: {
+            id: data.vehicle.vehicle.id,
+            vehicle_id: data.vehicle.vehicle.id,
+            currentStatus: data.vehicle.currentStatus,
+            currentStopSequence: data.vehicle.currentStopSequence,
+            stopId: data.vehicle.stopId,
+            timestamp: parseInt(data.vehicle.timestamp),
+            route_code: data.route_code,
+            trip: data.vehicle.trip,
+            trip_id: data.vehicle.trip.tripId,
+            position_bearing: data.vehicle.position.bearing,
+            position_speed: data.vehicle.position.speed,
+            position_latitude: data.vehicle.position.latitude,
+            position_longitude: data.vehicle.position.longitude
+        },
+        geometry: {
+            type: "Point",
+            coordinates: [data.vehicle.position.longitude, data.vehicle.position.latitude]
+        }
+    };
+
+    let geojson = {
+        type: "FeatureCollection",
+        features: [feature]
+    };
+
+    const features = getFeaturesFromData(geojson);
+    let newVehicleIds = new Set([feature.properties.vehicle_id]);
+    let this_data = {features}
+    // removeOldMarkers(newVehicleIds, this_data);
+    processVehicleData(this_data, features);
+    updateMap(features);
+    updateUI();
+
+    // Get the current time
+    const now = new Date();
+
+    // Get the update time div
+    const updateTimeDiv = document.getElementById('update-time');
+
+    // Update the content of the update time div
+    updateTimeDiv.textContent = `Updated at ${now.toLocaleTimeString()}`;
+    updateTimeDiv.style.fontSize = '12px';
+
+}
 function getFeaturesFromData(data) {
     let features;
     if (data && data.features) {
@@ -476,25 +474,8 @@ function updateUI() {
 
     let pst = new Date(now.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}));
     let hour = pst.getHours();
-
-    if (Object.keys(markers).length > 1) {
-        hideLoadingDiv();
-    }
 }
-function hideLoadingDiv() {
-    document.getElementById('loading').style.display = 'none';
-    }
 
-function removeOldMarkersFromUI(newVehicleIds, data) {
-    if (data.features.length > 0) {
-        for (let vehicle_id in markers) {
-            if (!newVehicleIds.has(vehicle_id)) {
-                markers[vehicle_id].remove();
-                delete markers[vehicle_id];
-            }
-        }
-    }
-}
 
 function processVehicleData(data, features) {
     const currentTimestamp = Math.floor(Date.now() / 1000); // Get current timestamp in seconds
@@ -531,118 +512,26 @@ function processVehicleData(data, features) {
     });
 }
 
-// This is your cleanup function
-function cleanupMarkers() {
-    const THREE_MINUTES_AGO = Date.now() - (3 * 60 * 1000);
-
-    // Clean up markers object
-    for (let vehicle_id in markers) {
-        if (markers[vehicle_id].timestamp < THREE_MINUTES_AGO) {
-            delete markers[vehicle_id];
-        }
-    }
-
-    // Clean up pending animations
-    for (let vehicle_id in pendingAnimations) {
-        if (pendingAnimations[vehicle_id].timestamp < THREE_MINUTES_AGO) {
-            delete pendingAnimations[vehicle_id];
-        }
-    }
-
-    // Clean up markers on the map layer
-    map.eachLayer(function(layer) {
-        if (layer instanceof maplibregl.Marker) {
-            let vehicle_id = layer.getElement().dataset.vehicleId;
-            if (markers[vehicle_id] && markers[vehicle_id].timestamp < THREE_MINUTES_AGO) {
-                map.removeLayer(layer);
-            }
-        }
-    });
-}
-
-// Schedule the cleanup function to run every 3 minutes
-setInterval(cleanupMarkers, 3 * 60 * 1000);
-
-// Run every 3 minutes
-setInterval(() => {
-    const now = Date.now();
-    const retentionPeriod = 3 * 60 * 1000; // 3 minutes
-
-    // Remove old entries from the features array
-    features = features.filter(feature => now - feature.timestamp <= retentionPeriod);
-
-    // Remove old entries from the markers object
-    for (const [vehicleId, marker] of Object.entries(markers)) {
-        if (now - marker.timestamp > retentionPeriod) {
-            delete markers[vehicleId];
-        }
-    }
-}, 3 * 60 * 1000);
-
-let arrowSvg;
-
-function updateExistingMarker(vehicle) {
-    const marker = markers[vehicle.properties.vehicle_id];
-    let currentCoordinates = marker.getLngLat();
-
-    if (vehicle.geometry && vehicle.geometry.coordinates) {
-        let diffLng = vehicle.geometry.coordinates[0] - currentCoordinates.lng;
-        let diffLat = vehicle.geometry.coordinates[1] - currentCoordinates.lat;
-        let distance = Math.sqrt(diffLng * diffLng + diffLat * diffLat);
-
-        // Convert the distance from degrees to miles
-        let distanceInMiles = distance * 69;
-
-        let steps = 60; // 60 frames per second
-
-        // Only update the marker if the distance is less than 1.0 mile
-        if (distanceInMiles < 1.00) {
-            // If an animation is currently running for this marker, wait for it to complete
-            if (animations[vehicle.properties.vehicle_id]) {
-                cancelAnimationFrame(animations[vehicle.properties.vehicle_id]);
-            }
-
-            animateMarker(vehicle, diffLng, diffLat, steps, currentCoordinates).then(() => {
-                if (vehicle.properties) {
-                    let newTimestamp = parseInt(vehicle.properties.timestamp);
-                    let currentTimestamp = marker.timestamp;
-
-
-                    marker.timestamp = newTimestamp;
-                }
-            });
-        }
-    }
-    updateMarkerRotations();
-    updatePopup(vehicle);
-}
-
-function updatePopup(vehicle) {
-    // Get the existing marker
-    let marker = markers[vehicle.properties.vehicle_id];
-
-    // Check if the marker has a popup
-    let popup = marker.getPopup();
-    if (popup) {
-        // Update the popup's HTML
-        popup.setHTML(`
-        <div style="display: flex; align-items: center;justify-content:center;">
-        <img src="${routeIcons[markers[vehicle.properties.vehicle_id].route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
-        <span></span>
-    </div>
-			<div style="text-align: center;">Vehicle ID: ${vehicle.properties.vehicle_id}<br>                      
-            Data from: ${new Date(markers[vehicle.properties.vehicle_id].timestamp * 1000).toLocaleTimeString()}
-			</div>
-			`);
-    }
-}
-
 function createNewMarker(vehicle, features) {
-    const el = document.createElement('div');
-    el.className = 'marker';
+    const existingMarker = markers[vehicle.properties.vehicle_id];
+    if (existingMarker) {
+        // If it exists, remove the existing marker from the map
+        existingMarker.remove();
+        // And delete it from the markers object
+        delete markers[vehicle.properties.vehicle_id];
+    }
 
-    const iconUrl = 'arrow.svg';
-    el.style.background = `url(${iconUrl}) no-repeat center/cover`;
+	const el = document.createElement('div');
+	el.className = 'marker';
+
+	// Check the route code and set the icon URL accordingly
+	let iconUrl = 'rail.svg';
+    let routeCode = vehicle.properties.route_code;
+    if (routeCode === '901' || routeCode === '910') {
+        iconUrl = 'bus.svg';
+    }
+
+	el.style.background = `url(${iconUrl}) no-repeat center/cover`;
 
     // Rotate the icon based on the heading
     const heading = vehicle.properties.position_bearing;
@@ -662,19 +551,19 @@ function createNewMarker(vehicle, features) {
 
     const popup = new maplibregl.Popup()
     .setHTML(`
-    <div style="display: flex; align-items: center;justify-content:center;">
-    <img src="${routeIcons[vehicle.properties.route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
-    <span></span>
-    </div>        
-	<div style="text-align: center;">Vehicle ID: ${vehicle.properties.vehicle_id}<br>
-    Data from ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}</div>`);
+		<div style="display: flex; align-items: center;justify-content:center;">
+		<img src="${routeIcons[vehicle.properties.route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
+		<span></span>
+		</div>        
+		<div style="text-align: center;">Vehicle ID: ${vehicle.properties.vehicle_id}<br>
+		Data from ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}</div>`);
 
     const marker = new maplibregl.Marker({element: el, anchor: 'center'})
         .setLngLat(vehicle.geometry.coordinates)
-        .setRotation(heading) // Rotate the marker
         .setPopup(popup) // Set the popup
         .addTo(map);
 
+		// .setRotation(heading) // Rotate the marker
     marker.properties = {
         vehicle_id: vehicle.properties.vehicle_id,
         Heading: heading
@@ -700,8 +589,76 @@ function createNewMarker(vehicle, features) {
     features.push(feature);
 }
 
+
+
+let arrowSvg;
+function cancelAnimationFrameForVehicle(vehicleId) {
+    if (animations[vehicleId]) {
+        cancelAnimationFrame(animations[vehicleId]);
+        delete animations[vehicleId];
+    }
+}
+function updateExistingMarker(vehicle) {
+    const marker = markers[vehicle.properties.vehicle_id];
+    let currentCoordinates = marker.getLngLat();
+
+    if (vehicle.geometry && vehicle.geometry.coordinates) {
+        let diffLng = vehicle.geometry.coordinates[0] - currentCoordinates.lng;
+        let diffLat = vehicle.geometry.coordinates[1] - currentCoordinates.lat;
+        let distance = Math.sqrt(diffLng * diffLng + diffLat * diffLat);
+
+        // Convert the distance from degrees to miles
+        let distanceInMiles = distance * 69;
+
+        // If the distance is greater than 1.0 mile, remove the old marker and add a new one
+        if (distanceInMiles > 1.0) {
+            // Remove the old marker from the map and the markers object
+            marker.remove();
+            delete markers[vehicle.properties.vehicle_id];
+
+            // Add the new marker
+            createNewMarker(vehicle);
+            return;
+        }
+
+        let steps = 60; // 60 frames per second
+
+        animateMarker(vehicle, diffLng, diffLat, steps, currentCoordinates).then(() => {
+            if (vehicle.properties) {
+                let newTimestamp = parseInt(vehicle.properties.timestamp);
+                let currentTimestamp = marker.timestamp;
+
+                marker.timestamp = newTimestamp;
+            }
+        });
+    }
+
+    // updateMarkerRotations();
+    updatePopup(vehicle);
+}
+
+function updatePopup(vehicle) {
+    // Get the existing marker
+    let marker = markers[vehicle.properties.vehicle_id];
+
+    // Check if the marker has a popup
+    let popup = marker.getPopup();
+    if (popup) {
+        // Update the popup's HTML
+        popup.setHTML(`
+        <div style="display: flex; align-items: center;justify-content:center;">
+        <img src="${routeIcons[markers[vehicle.properties.vehicle_id].route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
+        <span></span>
+    </div>
+			<div style="text-align: center;">Vehicle ID: ${vehicle.properties.vehicle_id}<br>                      
+            Data from: ${new Date(markers[vehicle.properties.vehicle_id].timestamp * 1000).toLocaleTimeString()}
+			</div>
+			`);
+    }
+}
+
 map.on('rotate', function() {
-    updateMarkerRotations();
+    // updateMarkerRotations();
 });
 
 
@@ -751,13 +708,13 @@ map.addControl(new HomeControl(), 'top-left');
 // Check if Geolocation API is available
 if ("geolocation" in navigator) {
     navigator.geolocation.getCurrentPosition(function(position) {
-        var lat = position.coords.latitude;
-        var lng = position.coords.longitude;
+        let lat = position.coords.latitude;
+        let lng = position.coords.longitude;
 
         // Check if the user is in Los Angeles County
         if (lat >= LA_COUNTY_BOUNDS.south && lat <= LA_COUNTY_BOUNDS.north && lng >= LA_COUNTY_BOUNDS.west && lng <= LA_COUNTY_BOUNDS.east) {
             // Create a new HTML element for the user's location
-            var userLocation = document.createElement("div");
+            let userLocation = document.createElement("div");
             userLocation.id = "userLocation";
             userLocation.className = "pulsatingIcon";
 
@@ -770,7 +727,7 @@ if ("geolocation" in navigator) {
             map.flyTo({center: [lng, lat], zoom: 12});
 
             // Add a circle to represent the accuracy of the geolocation
-            var accuracy = position.coords.accuracy;
+            let accuracy = position.coords.accuracy;
             map.addSource('circle', {
                 'type': 'geojson',
                 'data': {
@@ -800,7 +757,7 @@ if ("geolocation" in navigator) {
     console.log("Geolocation is not supported by this browser.");
     }
     // Add geolocate control to the map.
-    var geolocate = new maplibregl.GeolocateControl({
+    let geolocate = new maplibregl.GeolocateControl({
     positionOptions: {
         enableHighAccuracy: true
     },
