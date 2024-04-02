@@ -54,7 +54,12 @@ body {
 #legend-container {
     position: relative;
     width: 198px;
-    bottom: 60px;
+    bottom: 40px;
+    /* In mobile view, attribution control wraps to 2 lines.
+     * However, with the attribution control closed by default,
+     * we don't need to allocate the extra space.
+     */
+    /* bottom: 60px; */
     margin: 0px auto;
     background-color: #fff;
     border-radius: 8px;
@@ -156,6 +161,7 @@ body {
 #legend-share a {
     text-decoration: none;
     font-size: 10px;
+    line-height: 10px;
     color: #000;
     display: flex;
     flex-direction: row;
