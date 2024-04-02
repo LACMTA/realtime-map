@@ -54,7 +54,7 @@ body {
 #legend-container {
     position: relative;
     width: 198px;
-    bottom: 26px;
+    bottom: 60px;
     margin: 0px auto;
     background-color: #fff;
     border-radius: 8px;
@@ -148,10 +148,19 @@ body {
     margin-top: 12px;
 }
 
+#legend-share #lightbulb {
+    width: 12px;
+    height: 12px;
+}
+
 #legend-share a {
     text-decoration: none;
     font-size: 10px;
     color: #000;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 2px;
 }
 
 #legend-share a:hover, #legend-share a:active {
@@ -180,6 +189,7 @@ body {
         margin: 0;
         position: fixed;
         right: 16px;
+        bottom: 40px;
     }
 }
 
