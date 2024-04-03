@@ -284,7 +284,7 @@ function setupWebSocket(url, processData) {
 
     socket.onerror = function(error) {
         console.error(error);
-        document.getElementById('loading').style.display = 'none';
+        // document.getElementById('loading').style.display = 'none';
         // document.getElementById('loading').innerHTML = "Error loading data. Please check your connection or try again later.";
     };
 
@@ -495,7 +495,7 @@ function processVehicleData(data, features) {
                 // Update the marker's timestamp
                 markers[vehicle.properties.vehicle_id].timestamp = vehicleTimestamp;
                 // Update the marker's position
-                updateExistingMarker(vehicle);
+                updateExistingMarker(vehicle,features);
             }
 		} else {
 			// Check if a marker with the same vehicle_id already exists
@@ -504,7 +504,7 @@ function processVehicleData(data, features) {
 				// If the new timestamp is newer, update the existing marker
 				if (vehicleTimestamp > parseInt(existingMarker.timestamp)) {
 					existingMarker.timestamp = vehicleTimestamp;
-					updateExistingMarker(vehicle);
+					updateExistingMarker(vehicle,features);
 				}
 			} else {
 				createNewMarker(vehicle, features);
@@ -549,7 +549,7 @@ function createNewMarker(vehicle, features) {
 
     el.style.width = `${size}px`;
     el.style.height = `${size}px`;
-	let vehicleLabel = ['901', '910'].includes(vehicle.properties.route_code) ? 'Bus ID' : 'Train Car #';
+	let vehicleLabel = ['901', '910'].includes(vehicle.properties.route_code) ? 'Bus ID ' : 'Train Car #';
 
     const popup = new maplibregl.Popup()
 	.setHTML(`
@@ -600,7 +600,7 @@ function cancelAnimationFrameForVehicle(vehicleId) {
         delete animations[vehicleId];
     }
 }
-function updateExistingMarker(vehicle) {
+function updateExistingMarker(vehicle,features) {
     const marker = markers[vehicle.properties.vehicle_id];
     let currentCoordinates = marker.getLngLat();
 
@@ -619,7 +619,7 @@ function updateExistingMarker(vehicle) {
             delete markers[vehicle.properties.vehicle_id];
 
             // Add the new marker
-            createNewMarker(vehicle);
+            createNewMarker(vehicle,features);
             return;
         }
 
@@ -647,7 +647,7 @@ function updatePopup(vehicle) {
 	let popup = marker.getPopup();
 	if (popup) {
 		// Determine the label based on the route code
-		let vehicleLabel = ['901', '910'].includes(markers[vehicle.properties.vehicle_id].route_code) ? 'Bus ID' : 'Train Car #';
+		let vehicleLabel = ['901', '910'].includes(markers[vehicle.properties.vehicle_id].route_code) ? 'Bus ID ' : 'Train Car #';
 
 		// Update the popup's HTML
 		popup.setHTML(`
