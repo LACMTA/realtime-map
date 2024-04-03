@@ -515,6 +515,18 @@ function processVehicleData(data, features) {
 
 function createNewMarker(vehicle, features) {
     const existingMarker = markers[vehicle.properties.vehicle_id];
+
+    let routeCode = vehicle.properties.route_code;
+    let tripId = vehicle.properties.trip_id;
+    let isBus = false;
+
+    if (routeCode == '901' || routeCode == '910' || routeCode == '950') {
+        isBus = true;
+    }
+
+    // Check the route code and set the icon URL accordingly
+    let iconUrl = isBus ? 'bus.svg' : 'rail.svg';
+
     if (existingMarker) {
         // If it exists, remove the existing marker from the map
         existingMarker.remove();
@@ -524,13 +536,9 @@ function createNewMarker(vehicle, features) {
 
 	const el = document.createElement('div');
 	el.className = 'marker';
-
-	// Check the route code and set the icon URL accordingly
-	let iconUrl = 'rail.svg';
-    let routeCode = vehicle.properties.route_code;
-    if (routeCode === '901' || routeCode === '910') {
-        iconUrl = 'bus.svg';
-    }
+    el.setAttribute('data-route', routeCode);
+    el.setAttribute('data-trip', tripId);
+    el.setAttribute('data-mode', isBus ? 'bus' : 'rail')
 
 	el.style.background = `url(${iconUrl}) no-repeat center/cover`;
 
