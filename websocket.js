@@ -549,16 +549,17 @@ function createNewMarker(vehicle, features) {
 
     el.style.width = `${size}px`;
     el.style.height = `${size}px`;
+	let vehicleLabel = ['901', '910'].includes(vehicle.properties.route_code) ? 'Bus ID' : 'Train Car #';
 
     const popup = new maplibregl.Popup()
-    .setHTML(`
-		<div style="display: flex; align-items: center;justify-content:center;">
+	.setHTML(`
+	<div style="display: flex; align-items: center;justify-content:center;">
 		<img src="${routeIcons[vehicle.properties.route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
 		<span></span>
-		</div>        
-		<div style="text-align: center;">Vehicle ID: ${vehicle.properties.vehicle_id}<br>
-		Data from ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}</div>`);
+	</div>        
+	<div style="text-align: center;">${vehicleLabel}${vehicle.properties.vehicle_id}<br>
 
+	Data from ${new Date(vehicle.properties.timestamp * 1000).toLocaleTimeString()}</div>`);
     const marker = new maplibregl.Marker({element: el, anchor: 'center'})
         .setLngLat(vehicle.geometry.coordinates)
         .setPopup(popup) // Set the popup
@@ -639,23 +640,26 @@ function updateExistingMarker(vehicle) {
 }
 
 function updatePopup(vehicle) {
-    // Get the existing marker
-    let marker = markers[vehicle.properties.vehicle_id];
+	// Get the existing marker
+	let marker = markers[vehicle.properties.vehicle_id];
 
-    // Check if the marker has a popup
-    let popup = marker.getPopup();
-    if (popup) {
-        // Update the popup's HTML
-        popup.setHTML(`
-        <div style="display: flex; align-items: center;justify-content:center;">
-        <img src="${routeIcons[markers[vehicle.properties.vehicle_id].route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
-        <span></span>
-    </div>
-			<div style="text-align: center;">Vehicle ID: ${vehicle.properties.vehicle_id}<br>                      
-            Data from: ${new Date(markers[vehicle.properties.vehicle_id].timestamp * 1000).toLocaleTimeString()}
+	// Check if the marker has a popup
+	let popup = marker.getPopup();
+	if (popup) {
+		// Determine the label based on the route code
+		let vehicleLabel = ['901', '910'].includes(markers[vehicle.properties.vehicle_id].route_code) ? 'Bus ID' : 'Train Car #';
+
+		// Update the popup's HTML
+		popup.setHTML(`
+		<div style="display: flex; align-items: center;justify-content:center;">
+		<img src="${routeIcons[markers[vehicle.properties.vehicle_id].route_code]}" style="width: 24px; height: 24px; border-radius: 50%;">
+		<span></span>
+	</div>
+			<div style="text-align: center;">${vehicleLabel}${vehicle.properties.vehicle_id}<br>                      
+			Data from: ${new Date(markers[vehicle.properties.vehicle_id].timestamp * 1000).toLocaleTimeString()}
 			</div>
 			`);
-    }
+	}
 }
 
 map.on('rotate', function() {
