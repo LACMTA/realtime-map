@@ -94,52 +94,53 @@ map.on('load', () => {
         }
     }
     new mapboxglEsriSources.TiledMapService('imagery-source', map, {
-    url: 'https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Map_RGB_Vector_Offset_RC5/MapServer'
-})
+        url: 'https://tiles.arcgis.com/tiles/TNoJFjk1LsD45Juj/arcgis/rest/services/Map_RGB_Vector_Offset_RC5/MapServer'
+    });
+   
+    // Toggle attribution control to hide it by default
+    document.getElementsByClassName('maplibregl-ctrl-attrib-button')[0].click();
 
-map.addLayer({
-    id: 'imagery-layer',
-    type: 'raster',
-    source: 'imagery-source'
-})
+    map.addLayer({
+        id: 'imagery-layer',
+        type: 'raster',
+        source: 'imagery-source'
+    })
 
-let apiUrl = `https://api.metro.net/LACMTA_Rail/vehicle_positions?format=geojson&nocache=${new Date().getTime()}`;
+    let apiUrl = `https://api.metro.net/LACMTA_Rail/vehicle_positions?format=geojson&nocache=${new Date().getTime()}`;
 
-// Declare and initialize the popups object
-let popups = {};
-let brtUrl = 'https://api.metro.net/LACMTA/vehicle_positions/route_code/901%2C910?format=geojson'
+    // Declare and initialize the popups object
+    let popups = {};
+    let brtUrl = 'https://api.metro.net/LACMTA/vehicle_positions/route_code/901%2C910?format=geojson'
 
-// Extract the fetch logic into a separate function
+    // Extract the fetch logic into a separate function
 
-function handleError(error) {
-    if (error instanceof TypeError) {
-        document.getElementById('loading').innerHTML = "We're experiencing technical difficulties with our data. We're attempting to reload the data. Please wait<span class='dot1'>.</span><span class='dot2'>.</span><span class='dot3'>.</span>";
-        console.error('TypeError caught: ', error);
-        // Retry loading data
-        fetchData();
-    } else if (error instanceof SyntaxError) {
-        document.getElementById('loading').innerHTML = "We're currently facing some technical issues. Our team is working on it. Please try again later.";
-    } else if (error instanceof ReferenceError) {
-        document.getElementById('loading').innerHTML = "We're unable to find some necessary information. Please try again later.";
-    } else {
-        document.getElementById('loading').innerHTML = `We're experiencing unexpected issues: ${error.message}. Our team is looking into it. Please try again later.`;
+    function handleError(error) {
+        if (error instanceof TypeError) {
+            document.getElementById('loading').innerHTML = "We're experiencing technical difficulties with our data. We're attempting to reload the data. Please wait<span class='dot1'>.</span><span class='dot2'>.</span><span class='dot3'>.</span>";
+            console.error('TypeError caught: ', error);
+            // Retry loading data
+            fetchData();
+        } else if (error instanceof SyntaxError) {
+            document.getElementById('loading').innerHTML = "We're currently facing some technical issues. Our team is working on it. Please try again later.";
+        } else if (error instanceof ReferenceError) {
+            document.getElementById('loading').innerHTML = "We're unable to find some necessary information. Please try again later.";
+        } else {
+            document.getElementById('loading').innerHTML = `We're experiencing unexpected issues: ${error.message}. Our team is looking into it. Please try again later.`;
+        }
     }
-}
 
-// Define a function to hide the loading div
-function hideLoadingDiv() {
-    document.getElementById('loading').style.display = 'none';
-}
+    // Define a function to hide the loading div
+    function hideLoadingDiv() {
+        document.getElementById('loading').style.display = 'none';
+    }
 
-const updateTimeDivDom = document.getElementById('update-time');
-// Add an event listener to the update time div
+    const updateTimeDivDom = document.getElementById('update-time');
+    // Add an event listener to the update time div
 
-map.addSource('openmaptiles', {
-    url: `https://api.maptiler.com/tiles/v3/tiles.json?key=${MAPTILER_KEY}`,
-    type: 'vector',
-});
-
-
+    map.addSource('openmaptiles', {
+        url: `https://api.maptiler.com/tiles/v3/tiles.json?key=${MAPTILER_KEY}`,
+        type: 'vector',
+    });
 
     map.addLayer(
         {
